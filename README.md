@@ -31,12 +31,13 @@ Antropic config:
     "api_type": "anthropic"
 }
 ```
-`api_key` OpenAI API key is availalle on the ![website](https://platform.openai.com/account/api-keys), Clade API key here ![website](https://console.anthropic.com/account/keys)
+`api_key` OpenAI API key is availalle on the [website](https://platform.openai.com/account/api-keys), Clade API key here [website](https://console.anthropic.com/account/keys)
 
 `api` The base api used to send requests, you may also specify to a proxy url like: "https://your_proxy_domain/v1". For Azure APIs, you can find relevant information on the Azure resource dashboard, the form of API is usually:  https://{your origization}.openai.azure.com/
 
 `api_type` fixed value for "open_ai", "azure" or "anthropic"
 
+example:
 ```python
 from oneapi import OneAPITool
 res = OneAPITool.from_config_file("your_config_file.json").simple_chat("Hello AI!")

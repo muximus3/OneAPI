@@ -2,7 +2,7 @@
 Use only one line of code to call multiple model APIs similar to ChatGPT. Currently supported: Azure OpenAI Resource endpoint API, OpenAI Official API, and Anthropic Claude series model API.
 ## Installation
 ```sh
-pip install -U oneapi
+pip install -U one-api-tool
 ```
 ## Usage
 ### 1. (Recommended method) Set your key information in the local configuration file.
@@ -38,13 +38,13 @@ Antropic config:
 `api_type` fixed value for "open_ai", "azure" or "anthropic"
 
 ```python
-import oneapi
-res = oneapi.OneAPITool.from_config_file("your_config_file.json").simple_chat("Hello AI!")
+from oneapi import OneAPITool
+res = OneAPITool.from_config_file("your_config_file.json").simple_chat("Hello AI!")
 print(res)
 ```
 ### 2. derectly set the api_key in code
 ```python
-import oneapi
-res = oneapi.OneAPITool.from_config(api_key, api, api_type).simple_chat("Hello AI!")
+from oneapi import OneAPITool
+res = OneAPITool.from_config(api_key, api, api_type).simple_chat("Hello AI!")
 print(res)
 ```

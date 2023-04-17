@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import json
 from typing import List
-from typing import Optional,Sequence
+from typing import Optional, Sequence
 import openai
 import anthropic
 from pydantic import BaseModel
-from abc import ABC, ABCMeta,abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 
 
 CLAUDE_TEMPLATE = "\n\nHuman: {prompt}\n\nAssistant: "
@@ -96,7 +96,6 @@ class AbstractAPITool(ABC):
         
 
 class OpenAITool(AbstractAPITool):
-
 
     def __init__(self,method : AbstrctMethod) -> None:
         self.method = method

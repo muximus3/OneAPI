@@ -39,12 +39,12 @@ Antropic config:
 
 ```python
 import oneapi
-res = oneapi.from_config("your_config_file.json").simple_chat("Hello AI!")
+res = oneapi.OneAPITool.from_config_file("your_config_file.json").simple_chat("Hello AI!")
 print(res)
 ```
 ### 2. derectly set the api_key in code
 ```python
 import oneapi
-res = oneapi.from_config(api_key, api, api_type).simple_chat("Hello AI!")
+res = oneapi.OneAPITool.from_config(api_key, api, api_type).simple_chat("Hello AI!")
 print(res)
 ```

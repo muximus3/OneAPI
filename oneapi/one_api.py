@@ -90,6 +90,7 @@ class ClaudeDecodingArguments(BaseModel):
 
 class AbstractAPITool(ABC):
 
+    @abstractmethod
     def simple_chat(args):
         raise NotImplementedError
         

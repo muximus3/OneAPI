@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
-from typing import List
-from typing import Optional, Sequence
+from typing import Optional, Sequence, List
 import openai
 import anthropic
 from pydantic import BaseModel
@@ -36,9 +35,9 @@ class AzureMethod(AbstrctMethod):
     api_key: str
     api_base: str # Your Azure OpenAI resource's endpoint value.
     api_type: str = "azure"
-    api_version = "2023-03-15-preview"
-    deployment_name = "gpt-35-turbo" # The deployment name you chose when you deployed the ChatGPT or GPT-4 model
-    method_chat = f"/openai/deployments/{deployment_name}/chat/completions?api-version={api_version}" # used for http requests
+    api_version = "2023-03-15-preview" # Official API version, usually there is no need to modify this field.
+    deployment_name = "gpt-35-turbo" # The deployment name you chose when you deployed the ChatGPT or GPT-4 model, used for raw http requests
+    method_chat = f"/openai/deployments/{deployment_name}/chat/completions?api-version={api_version}" # used for raw http requests
     method_list_models :str = "" 
     method_model_info :str = ""
     method_commpletions :str = ""
@@ -110,7 +109,7 @@ class OpenAITool(AbstractAPITool):
 
     def simple_chat(self, args: OpenAIDecodingArguments):
         """
-        https://learn.microsoft.com/zh-cn/azure/cognitive-services/openai/how-to/chatgpt?pivots=programming-language-chat-completions
+        https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/chatgpt?pivots=programming-language-chat-completions
         https://platform.openai.com/docs/api-reference/chat
         """
 
@@ -196,25 +195,25 @@ class OneAPITool():
         config = cls.load_json(config_file)
         api_type = config.get("api_type")
 
-        if api_type == "anthropic":
+        if api_type == "claude":
             return cls(ClaudeAITool(ClaudeMethod(api_key=config["api_key"], api_base=config["api"])))
         elif api_type == "azure":
             return cls(OpenAITool(AzureMethod(api_key=config["api_key"], api_base=config["api"])))
         elif api_type == "open_ai":
             return cls(OpenAITool(OpenAIMethod(api_key=config["api_key"], api_base=config["api"])))
         else:
-            raise AssertionError(f"Couldn\'t find API type in config file: {config_file}. Please specify \"api_type\" as \"anthropic\", \"azure\", or \"open_ai\".")
+            raise AssertionError(f"Couldn\'t find API type in config file: {config_file}. Please specify \"api_type\" as \"claude\", \"azure\", or \"open_ai\".")
 
     @classmethod
     def from_config(cls, api_key, api, api_type):
-        if api_type == "anthropic":
+        if api_type == "claude":
             return cls(ClaudeAITool(ClaudeMethod(api_key=api_key, api_base=api)))
         elif api_type == "azure":
             return cls(OpenAITool(AzureMethod(api_key=api_key, api_base=api)))
         elif api_type == "open_ai":
             return cls(OpenAITool(OpenAIMethod(api_key=api_key, api_base=api)))
         else:
-            raise AssertionError(f"Couldn\'t find API type: {api_type}. Please specify \"api_type\" as \"anthropic\", \"azure\", or \"open_ai\".")
+            raise AssertionError(f"Couldn\'t find API type: {api_type}. Please specify \"api_type\" as \"claude\", \"azure\", or \"open_ai\".")
 
 
     @staticmethod

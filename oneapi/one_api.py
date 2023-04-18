@@ -56,12 +56,12 @@ class OpenAIDecodingArguments(BaseModel):
     model: str = "gpt-3.5-turbo"
     max_tokens: int = 2048
     temperature: float = 1
-    top_p: float = 1.0
+    top_p: float = 1
     n: int = 1
     stream: bool = False
     stop: Optional[Sequence[str]] = None
-    presence_penalty: float = 1.0
-    frequency_penalty: float = 1.0
+    presence_penalty: float = 0
+    frequency_penalty: float = 0
     user: Optional[str] = ""
 
 class AzureDecodingArguments(BaseModel):
@@ -69,12 +69,13 @@ class AzureDecodingArguments(BaseModel):
     engine: str = "gpt-35-turbo" # The deployment name you chose when you deployed the ChatGPT or GPT-4 model
     max_tokens: int = 2048
     temperature: float = 1
-    top_p: float = 1.0
+    top_p: float = 1
     n: int = 1
     stream: bool = False
     stop: Optional[Sequence[str]] = None
-    presence_penalty: float = 1.0
-    frequency_penalty: float = 1.0
+    presence_penalty: float = 0
+    frequency_penalty: float = 0
+    user: Optional[str] = ""
 
 
 class ClaudeDecodingArguments(BaseModel):

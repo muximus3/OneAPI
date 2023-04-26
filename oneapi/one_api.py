@@ -4,8 +4,10 @@ from typing import Optional, Sequence, List
 import openai
 import anthropic
 from pydantic import BaseModel
-from abc import ABC, ABCMeta, abstractmethod
-
+from abc import ABC, abstractmethod
+import sys
+import os
+sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
 
 CLAUDE_TEMPLATE = "\n\nHuman: {prompt}\n\nAssistant: "
 

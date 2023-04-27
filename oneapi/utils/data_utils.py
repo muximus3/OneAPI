@@ -40,6 +40,15 @@ def extract_all_json(text, merged_return=True):
             single_dict.update(dict_obj)
         return single_dict
 
+def extract_last_json(text) -> dict:
+    json_str = re.search(r'\{[^}]*\}(?=[^{}]*$)', text).group()
+    json_data = json.loads(json_str)
+    return json_data
+
+def extract_numbers(text):
+    numbers = re.findall(r'\d+', text)
+    numbers = [float(number) for number in numbers]
+
 
 def df2xlsx(df: pd.DataFrame, save_path: str, sheet_name='Sheet1', mode='w', index=False):
     if mode not in ['w', 'a']:

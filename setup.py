@@ -2,11 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="one-api-tool",
-    version="0.2.5",
+    version="0.2.7",
     packages=find_packages(),
-    package_data={
-      "oneapi":["prompt_template/eval_prompt_template.json"]  
-    },
     install_requires=[
         # Add your library's dependencies here
         "pydantic",
@@ -16,15 +13,9 @@ setup(
         "httpx",
         "aiohttp",
         "tokenizers",
-        "pandas",
-        "openpyxl",
-        "tabulate",
-        "XlsxWriter"
     ],
     entry_points={
         "console_scripts": [
-            "one-eval-file=oneapi.commands.one_api_eval_file:main",
-            "one-eval-line=oneapi.commands.one_api_eval_one:main",
             "one-api=oneapi.commands.one_api_requst:main"
         ]
     },

@@ -51,3 +51,41 @@ print(res)
 from oneapi import OneAPITool
 res = OneAPITool.from_config(api_key, api, api_type).simple_chat("Hello AI!")
 print(res)
+```
+
+### 3. Using with command line
+```sh
+open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
+--model gpt-3.5-turbo \
+--prompt "1+1=?" 
+```
+<details><summary>Click to see output detail</summary>
+
+-------------------- prompt detail 🚀  --------------------
+
+1+1=?
+
+-------------------- prompt end --------------------
+
+-------------------- gpt-35-turbo response ⭐️ --------------------
+
+2
+
+-------------------- response end --------------------
+
+</details>
+
+#### Arguments Definitions:
+
+`--config_file` string ${\color{orange}\text{Required}}$ <br>A local configuration file containing API key information.
+
+`--prompt` string ${\color{orange}\text{Required}}$ <br>
+The question that would be predicted by LLMs, e.g., A math question would be like: "1+1=?".
+
+`--model` string ${\color{grey}\text{Optional}}$  Defaults to GPT-3.5-turbo or Claude-v1.3 depends on `api_type`<br> Which model to perform evaluation.
+
+`--temperature` number ${\color{grey}\text{Optional}}$ Defaults to 1 <br>What sampling temperature to use.  Higher values like 1 will make the output more random, while lower values like 0.1 will make it more focused and deterministic.
+
+`--max_new_tokens` integer ${\color{grey}\text{Optional}}$ Defaults to 2048 <br>
+The maximum number of tokens to generate in the chat completion.
+The total length of input tokens and generated tokens is limited by the model's context length.

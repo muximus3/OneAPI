@@ -25,7 +25,7 @@ def main():
                         default="",
                         help="evaluate model name, e.g., gpt-35-turbo, gpt-4",
                         required=False)
-    parser.add_argument("-tt",
+    parser.add_argument("-te",
                         "--temperature",
                         type=float,
                         default=0.1,

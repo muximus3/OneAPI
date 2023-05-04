@@ -61,6 +61,7 @@ open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 ```
 <details><summary>Click to see output detail</summary>
 
+```text
 -------------------- prompt detail 🚀  --------------------
 
 1+1=?
@@ -72,6 +73,7 @@ open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 2
 
 -------------------- response end --------------------
+```
 
 </details>
 

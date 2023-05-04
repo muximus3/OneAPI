@@ -67,7 +67,7 @@ open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 
 -------------------- prompt end --------------------
 
--------------------- gpt-35-turbo response ⭐️ --------------------
+-------------------- gpt-3.5-turbo response ⭐️ --------------------
 
 2
 

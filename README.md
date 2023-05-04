@@ -89,3 +89,8 @@ The question that would be predicted by LLMs, e.g., A math question would be lik
 `--max_new_tokens` integer ${\color{grey}\text{Optional}}$ Defaults to 2048 <br>
 The maximum number of tokens to generate in the chat completion.
 The total length of input tokens and generated tokens is limited by the model's context length.
+
+## ToDo
+- [ ] Batch request support.
+- [ ] Token number compute.
+- [ ] Cutom token budget.

@@ -1,7 +1,7 @@
 # OneAPI
-Easily access multiple ChatGPT or similar APIs with just one line of code/command. <br>
+Easily access multiple ChatGPT or similar APIs with just one line of code/command.
 
-Save a significant amount of ☕️ time by avoiding the need to read multiple API documents and test them individually.<br>
+Save a significant amount of ☕️ time by avoiding the need to read multiple API documents and test them individually.
 
 The currently supported APIs include:
  - [x] OpenAI Official API.
@@ -40,7 +40,7 @@ Anthropic config:
     "api_type": "claude"
 }
 ```
-`api_key`: Obtain your OpenAI API key from the [OpenAI website](https://platform.openai.com/account/api-keys) and your Claude API key from the [Anthropic website](https://console.anthropic.com/account/keys).
+`api_key`: Obtain OpenAI API key from the [OpenAI website](https://platform.openai.com/account/api-keys) and Claude API key from the [Anthropic website](https://console.anthropic.com/account/keys).
 
 `api`: The base API used to send requests. You may also specify a proxy URL like: "https://your_proxy_domain/v1". For Azure APIs, you can find relevant information on the Azure resource dashboard. The API format is usually: `https://{your_organization}.openai.azure.com/`.
 
@@ -66,7 +66,7 @@ open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 --model gpt-3.5-turbo \
 --prompt "1+1=?" 
 ```
-<details><summary>Click to see output detail</summary>
+<details open><summary>Output detail</summary>
 
 ```text
 -------------------- prompt detail 🚀  --------------------
@@ -84,14 +84,14 @@ open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 
 </details>
 
-#### Arguments Definitions:
+#### Arguments detail:
 
 `--config_file` string ${\color{orange}\text{Required}}$ <br>A local configuration file containing API key information.
 
 `--prompt` string ${\color{orange}\text{Required}}$ <br>
 The question that would be predicted by LLMs, e.g., A math question would be like: "1+1=?".
 
-`--model` string ${\color{grey}\text{Optional}}$  Defaults to GPT-3.5-turbo or Claude-v1.3 depends on `api_type`<br> Which model to perform evaluation.
+`--model` string ${\color{grey}\text{Optional}}$  Defaults to GPT-3.5-turbo or Claude-v1.3 depends on `api_type`<br> Which model to use, e.g., gpt-4.
 
 `--temperature` number ${\color{grey}\text{Optional}}$ Defaults to 1 <br>What sampling temperature to use.  Higher values like 1 will make the output more random, while lower values like 0.1 will make it more focused and deterministic.
 

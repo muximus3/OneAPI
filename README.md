@@ -1,5 +1,12 @@
 # OneAPI
-Use a single line of code to call multiple model APIs similar to ChatGPT. Currently supported: Azure OpenAI Resource endpoint API, OpenAI Official API, and Anthropic Claude series model API.
+Easily access multiple ChatGPT or similar APIs with just one line of code/command. <br>
+
+Save a significant amount of ☕️ time by avoiding the need to read multiple API documents and test them individually.<br>
+
+The currently supported APIs include:
+ - [x] OpenAI Official API.
+ - [x] Azure OpenAI Resource endpoint API.
+ - [x] Anthropic Claude series model API.
 
 ## Installation
 ```sh
@@ -53,7 +60,7 @@ res = OneAPITool.from_config(api_key, api, api_type).simple_chat("Hello AI!")
 print(res)
 ```
 
-### 3. Using with command line
+### 3. Usage with command line
 ```sh
 open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 --model gpt-3.5-turbo \
@@ -93,6 +100,6 @@ The maximum number of tokens to generate in the chat completion.
 The total length of input tokens and generated tokens is limited by the model's context length.
 
 ## ToDo
-- [ ] Batch request support.
-- [ ] Token number compute.
-- [ ] Cutom token budget.
+- [ ] Batch requests.
+- [ ] Token number counting.
+- [ ] Custom token budget.

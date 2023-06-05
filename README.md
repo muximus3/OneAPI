@@ -5,7 +5,7 @@ Save a significant amount of ☕️ time by avoiding the need to read multiple A
 
 The currently supported APIs include:
  - [x] OpenAI Official API.
- - [x] Azure OpenAI Resource endpoint API.
+ - [x] Microsoft Azure OpenAI Resource endpoint API.
  - [x] Anthropic Claude series model API.
 
 ## Installation
@@ -93,7 +93,7 @@ The question that would be predicted by LLMs, e.g., A math question would be lik
 
 `--model` string ${\color{grey}\text{Optional}}$  Defaults to GPT-3.5-turbo or Claude-v1.3 depends on `api_type`<br> Which model to use, e.g., gpt-4.
 
-`--temperature` number ${\color{grey}\text{Optional}}$ Defaults to 1 <br>What sampling temperature to use.  Higher values like 1 will make the output more random, while lower values like 0.1 will make it more focused and deterministic.
+`--temperature` number ${\color{grey}\text{Optional}}$ Defaults to 1 <br>What sampling temperature to use.  Higher values like 0.9 will make the output more random, while lower values like 0.1 will make it more focused and deterministic. 
 
 `--max_new_tokens` integer ${\color{grey}\text{Optional}}$ Defaults to 2048 <br>
 The maximum number of tokens to generate in the chat completion.

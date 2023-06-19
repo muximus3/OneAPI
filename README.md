@@ -14,13 +14,13 @@ pip install -U one-api-tool
 ```
 
 ## Usage
-### 1. (Recommended method) Set your key information in the local configuration file.
+### 1. Usage with python.
 
 OpenAI config:
 ```json
 {
     "api_key": "YOUR_API_KEY",
-    "api": "https://api.openai.com/v1",
+    "api_base": "https://api.openai.com/v1",
     "api_type": "open_ai"
 }
 ```
@@ -28,7 +28,7 @@ Azure OpenAI config:
 ```json
 {
     "api_key": "YOUR_API_KEY",
-    "api": "Replace with your Azure OpenAI resource's endpoint value.",
+    "api_base": "Replace with your Azure OpenAI resource's endpoint value.",
     "api_type": "azure"
 }
 ```
@@ -36,31 +36,33 @@ Anthropic config:
 ```json
 {
     "api_key": "YOUR_API_KEY",
-    "api": "https://api.anthropic.com",
+    "api_base": "https://api.anthropic.com",
     "api_type": "claude"
 }
 ```
 `api_key`: Obtain OpenAI API key from the [OpenAI website](https://platform.openai.com/account/api-keys) and Claude API key from the [Anthropic website](https://console.anthropic.com/account/keys).
 
-`api`: The base API used to send requests. You may also specify a proxy URL like: "https://your_proxy_domain/v1". For Azure APIs, you can find relevant information on the Azure resource dashboard. The API format is usually: `https://{your_organization}.openai.azure.com/`.
+`api_base`: The base API used to send requests. You may also specify a proxy URL like: "https://your_proxy_domain/v1". For Azure APIs, you can find relevant information on the Azure resource dashboard. The API format is usually: `https://{your_organization}.openai.azure.com/`.
 
 `api_type`: Currently supported values are "open_ai", "azure", or "claude".
 
-Initialize the `OneAPITool` object from a local configuration file:
+Initialize the `OneAPITool` object from configuration:
 ```python
 from oneapi import OneAPITool
-res = OneAPITool.from_config_file("your_config_file.json").simple_chat("Hello AI!")
+# Two ways to initialize the OneAPITool object  
+# tool = OneAPITool.from_config(api_key, api_base, api_type)
+tool = OneAPITool.from_config_file("your_config_file.json")
+# Say hello to ChatGPT/Claude/GPT-4
+res = tool.simple_chat("Hello AI!")
 print(res)
+# Get embeddings of some sentences for further usage
+embeddings = tool.get_embeddings(["Hello AI!", "Hello world!"])
+print(embeddings.shape)
+# Count the number of tokens
+print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 ```
-
-### 2. (Not recommended) Write the configuration directly into the code
-```python
-from oneapi import OneAPITool
-res = OneAPITool.from_config(api_key, api, api_type).simple_chat("Hello AI!")
-print(res)
-```
-
-### 3. Usage with command line
+**Note: Currently, `count_tokens` and `get_embeddings` only support OpenAI or Microsoft Azure API.**
+### 2. Usage with command line
 ```sh
 open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 --model gpt-3.5-turbo \

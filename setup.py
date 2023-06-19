@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="one-api-tool",
-    version="0.2.7",
+    version="0.2.9",
     packages=find_packages(),
     install_requires=[
         # Add your library's dependencies here
@@ -12,6 +12,7 @@ setup(
         "requests",
         "httpx",
         "aiohttp",
+        "tiktoken",
         "tokenizers",
     ],
     entry_points={

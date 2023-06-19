@@ -7,10 +7,7 @@ from pydantic import BaseModel
 from abc import ABC, abstractmethod
 import sys
 import os
-try:
-    import tiktoken
-except:
-    pass
+import tiktoken
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
 
 CLAUDE_TEMPLATE = "\n\nHuman: {prompt}\n\nAssistant:"
@@ -106,6 +103,7 @@ class OpenAITool(AbstractAPITool):
 
     def __init__(self,method : AbstrctMethod) -> None:
         self.method = method
+        self.encoder = None
         if isinstance(self.method, AzureMethod):
             openai.api_key = self.method.api_key
             openai.api_base = self.method.api_base
@@ -140,39 +138,36 @@ class OpenAITool(AbstractAPITool):
             return completion.choices[0].message.get("content", "")
 
 
-    def get_embeddings(self, list_of_text: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
-        assert len(list_of_text) <= 2048, "The batch size should not be larger than 2048."
-        openai.api_key = self.method.api_key
+    def get_embeddings(self, texts: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
+        assert len(texts) <= 2048, "The batch size should not be larger than 2048."
         # replace newlines, which can negatively affect performance.
-        list_of_text = [text.replace("\n", " ") for text in list_of_text]
+        texts = [text.replace("\n", " ") for text in texts]
 
-        data = openai.Embedding.create(input=list_of_text, engine=engine).data
+        data = openai.Embedding.create(input=texts, engine=engine).data
         data = sorted(data, key=lambda x: x["index"])  # maintain the same order as input.
         return [d["embedding"] for d in data]
 
 
     def get_embedding(self, text: str, engine="text-embedding-ada-002") -> List[float]:
-        openai.api_key = self.method.api_key
         # replace newlines, which can negatively affect performance.
         text = text.replace("\n", " ")
-
         return openai.Embedding.create(input=[text], engine=engine)["data"][0]["embedding"]
 
-    @staticmethod
-    def count_tokens(list_of_text: List[str], encoding_name: str = 'cl100k_base') -> int:
+    def count_tokens(self, texts: List[str], encoding_name: str = 'cl100k_base') -> int:
         """
         Encoding name	OpenAI models
         cl100k_base	    gpt-4, gpt-3.5-turbo, text-embedding-ada-002
         p50k_base	    Codex models, text-davinci-002, text-davinci-003
         r50k_base (or gpt2)	GPT-3 models like davinci
         Args:
-            list_of_text (List[str]): [description]
+            texts (List[str]): [description]
             encoding_name (str, optional): Defaults to 'cl100k_base'.
         Returns:
             int: [description]
         """
-        encoder = tiktoken.get_encoding(encoding_name)
-        list_of_tokens = encoder.encode_batch(list_of_text)
+        if self.encoder is None:
+            self.encoder = tiktoken.get_encoding(encoding_name)
+        list_of_tokens = self.encoder.encode_batch(texts)
         return sum([len(tokens) for tokens in list_of_tokens])
 
 
@@ -220,22 +215,22 @@ class OneAPITool():
         api_type = config.get("api_type")
 
         if api_type == "claude":
-            return cls(ClaudeAITool(ClaudeMethod(api_key=config["api_key"], api_base=config["api"])))
+            return cls(ClaudeAITool(ClaudeMethod(api_key=config["api_key"], api_base=config["api_base"])))
         elif api_type == "azure":
-            return cls(OpenAITool(AzureMethod(api_key=config["api_key"], api_base=config["api"])))
+            return cls(OpenAITool(AzureMethod(api_key=config["api_key"], api_base=config["api_base"])))
         elif api_type == "open_ai":
-            return cls(OpenAITool(OpenAIMethod(api_key=config["api_key"], api_base=config["api"])))
+            return cls(OpenAITool(OpenAIMethod(api_key=config["api_key"], api_base=config["api_base"])))
         else:
             raise AssertionError(f"Couldn\'t find API type in config file: {config_file}. Please specify \"api_type\" as \"claude\", \"azure\", or \"open_ai\".")
 
     @classmethod
-    def from_config(cls, api_key, api, api_type):
+    def from_config(cls, api_key, api_base, api_type):
         if api_type == "claude":
-            return cls(ClaudeAITool(ClaudeMethod(api_key=api_key, api_base=api)))
+            return cls(ClaudeAITool(ClaudeMethod(api_key=api_key, api_base=api_base)))
         elif api_type == "azure":
-            return cls(OpenAITool(AzureMethod(api_key=api_key, api_base=api)))
+            return cls(OpenAITool(AzureMethod(api_key=api_key, api_base=api_base)))
         elif api_type == "open_ai":
-            return cls(OpenAITool(OpenAIMethod(api_key=api_key, api_base=api)))
+            return cls(OpenAITool(OpenAIMethod(api_key=api_key, api_base=api_base)))
         else:
             raise AssertionError(f"Couldn\'t find API type: {api_type}. Please specify \"api_type\" as \"claude\", \"azure\", or \"open_ai\".")
 
@@ -259,3 +254,15 @@ class OneAPITool():
 
         response = self.tool.simple_chat(args)
         return response
+
+    def get_embeddings(self, texts: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
+        if isinstance(self.tool, OpenAITool):
+            return self.tool.get_embeddings(texts, engine)  
+        else:
+            raise AssertionError(f"Not supported api type for embeddings: {type(self.tool)}")
+    
+    def count_tokens(self, texts: List[str], encoding_name: str = 'cl100k_base') -> int:
+        if isinstance(self.tool, OpenAITool):
+            return self.tool.count_tokens(texts, encoding_name)
+        else:
+            raise AssertionError(f"Not supported api type for token counting: {type(self.tool)}")

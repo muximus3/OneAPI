@@ -7,9 +7,13 @@ from pydantic import BaseModel
 from abc import ABC, abstractmethod
 import sys
 import os
+try:
+    import tiktoken
+except:
+    pass
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
 
-CLAUDE_TEMPLATE = "\n\nHuman: {prompt}\n\nAssistant: "
+CLAUDE_TEMPLATE = "\n\nHuman: {prompt}\n\nAssistant:"
 
 class ChatGPTMessage(BaseModel):
     role: str
@@ -154,6 +158,22 @@ class OpenAITool(AbstractAPITool):
 
         return openai.Embedding.create(input=[text], engine=engine)["data"][0]["embedding"]
 
+    @staticmethod
+    def count_tokens(list_of_text: List[str], encoding_name: str = 'cl100k_base') -> int:
+        """
+        Encoding name	OpenAI models
+        cl100k_base	    gpt-4, gpt-3.5-turbo, text-embedding-ada-002
+        p50k_base	    Codex models, text-davinci-002, text-davinci-003
+        r50k_base (or gpt2)	GPT-3 models like davinci
+        Args:
+            list_of_text (List[str]): [description]
+            encoding_name (str, optional): Defaults to 'cl100k_base'.
+        Returns:
+            int: [description]
+        """
+        encoder = tiktoken.get_encoding(encoding_name)
+        list_of_tokens = encoder.encode_batch(list_of_text)
+        return sum([len(tokens) for tokens in list_of_tokens])
 
 
 

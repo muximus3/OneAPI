@@ -14,7 +14,7 @@ pip install -U one-api-tool
 ```
 
 ## Usage
-### 1. Usage with python.
+### 1. Using python.
 
 OpenAI config:
 ```json
@@ -42,11 +42,13 @@ Anthropic config:
 ```
 `api_key`: Obtain OpenAI API key from the [OpenAI website](https://platform.openai.com/account/api-keys) and Claude API key from the [Anthropic website](https://console.anthropic.com/account/keys).
 
-`api_base`: The base API used to send requests. You may also specify a proxy URL like: "https://your_proxy_domain/v1". For Azure APIs, you can find relevant information on the Azure resource dashboard. The API format is usually: `https://{your_organization}.openai.azure.com/`.
+`api_base`: This is the base API that is used to send requests. You can also specify a proxy URL, such as "https://your_proxy_domain/v1". For example, you can use Cloudflare workers to proxy the OpenAI site.
+
+If you are using Azure APIs, you can find relevant information on the Azure resource dashboard. The API format typically follows this pattern: `https://{your_organization}.openai.azure.com/`.
 
 `api_type`: Currently supported values are "open_ai", "azure", or "claude".
 
-Initialize the `OneAPITool` object from configuration:
+Here is a simple example:
 ```python
 from oneapi import OneAPITool
 # Two ways to initialize the OneAPITool object  
@@ -62,7 +64,7 @@ print(embeddings.shape)
 print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 ```
 **Note: Currently, `count_tokens` and `get_embeddings` only support OpenAI or Microsoft Azure API.**
-### 2. Usage with command line
+### 2. Using command line
 ```sh
 open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 --model gpt-3.5-turbo \

@@ -57,7 +57,7 @@ tool = OneAPITool.from_config_file("your_config_file.json")
 # Say hello to ChatGPT/Claude/GPT-4
 res = tool.simple_chat("Hello AI!")
 print(res)
-# Get embeddings of some sentences for further usage
+# Get embeddings of some sentences for further usage, e.g., clustering
 embeddings = tool.get_embeddings(["Hello AI!", "Hello world!"])
 print(len(embeddings)))
 # Count the number of tokens

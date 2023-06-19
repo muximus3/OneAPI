@@ -48,7 +48,7 @@ If you are using Azure APIs, you can find relevant information on the Azure reso
 
 `api_type`: Currently supported values are "open_ai", "azure", or "claude".
 
-Here is a simple example:
+Here is  simple example:
 ```python
 from oneapi import OneAPITool
 # Two ways to initialize the OneAPITool object  
@@ -59,7 +59,7 @@ res = tool.simple_chat("Hello AI!")
 print(res)
 # Get embeddings of some sentences for further usage
 embeddings = tool.get_embeddings(["Hello AI!", "Hello world!"])
-print(embeddings.shape)
+print(len(embeddings)))
 # Count the number of tokens
 print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 ```

@@ -19,6 +19,11 @@ def main():
                         type=str,
                         help="question",
                         required=True)
+    parser.add_argument("-s",
+                        "--system",
+                        type=str,
+                        help="question",
+                        required=True)
     parser.add_argument("-m",
                         "--model",
                         type=str,
@@ -44,6 +49,7 @@ def main():
     )
     response = tool.simple_chat(
         prompt=args.prompt,
+        system=args.system,
         model=args.model,
         temperature=args.temperature,
         max_new_tokens=args.max_new_tokens,

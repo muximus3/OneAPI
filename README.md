@@ -63,7 +63,7 @@ print(len(embeddings)))
 # Count the number of tokens
 print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 ```
-**Note: Currently, `count_tokens` and `get_embeddings` only support OpenAI or Microsoft Azure API.**
+**Note: Currently, `get_embeddings` only support OpenAI or Microsoft Azure API.**
 ### 2. Using command line
 ```sh
 open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
@@ -95,6 +95,8 @@ open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 `--prompt` string ${\color{orange}\text{Required}}$ <br>
 The question that would be predicted by LLMs, e.g., A math question would be like: "1+1=?".
 
+`--system` string ${\color{grey}\text{Optional}}$  Defaults to null <br> System message to instruct chatGPT, e.g., You are a helpful assistant.
+
 `--model` string ${\color{grey}\text{Optional}}$  Defaults to GPT-3.5-turbo or Claude-v1.3 depends on `api_type`<br> Which model to use, e.g., gpt-4.
 
 `--temperature` number ${\color{grey}\text{Optional}}$ Defaults to 1 <br>What sampling temperature to use.  Higher values like 0.9 will make the output more random, while lower values like 0.1 will make it more focused and deterministic. 
@@ -105,5 +107,6 @@ The total length of input tokens and generated tokens is limited by the model's 
 
 ## ToDo
 - [ ] Batch requests.
-- [ ] Token number counting.
+- [ ] OpenAI function_call.
+- [x] Token number counting.
 - [ ] Custom token budget.

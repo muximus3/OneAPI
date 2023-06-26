@@ -240,15 +240,16 @@ class OneAPITool():
         with open(file_path, "r") as f:
             return json.load(f)
 
-    def simple_chat(self, prompt, model="", temperature=1, max_new_tokens=2048, stream=True, **kwargs):
+    def simple_chat(self, prompt, system_message="", model="", temperature=1, max_new_tokens=2048, stream=True, **kwargs):
         if isinstance(self.tool, OpenAITool):
-            msgs = [ChatGPTMessage(role="user", content=prompt)]
+            msgs = [] if system_message == "" else [ChatGPTMessage(role="system", content=system_message)]
+            msgs.append(ChatGPTMessage(role="user", content=prompt))
             if isinstance(self.tool.method, AzureMethod):
                 args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
             elif isinstance(self.tool.method, OpenAIMethod):
-                args = OpenAIDecodingArguments(messages=msgs, model=model if model else "gpt-3.5-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
+                args = OpenAIDecodingArguments(messages=msgs, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
         elif isinstance(self.tool, ClaudeAITool):
-            args = ClaudeDecodingArguments(prompt=f"\n\nHuman: {prompt}\n\nAssistant:", model=model if model else "claude-v1.3", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
+            args = ClaudeDecodingArguments(prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}", model=model if model else "claude-v1.3-100k", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
         else:
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
 
@@ -260,9 +261,17 @@ class OneAPITool():
             return self.tool.get_embeddings(texts, engine)  
         else:
             raise AssertionError(f"Not supported api type for embeddings: {type(self.tool)}")
+
+    def get_embedding(self, text: str, engine="text-embedding-ada-002") -> List[float]:
+        if isinstance(self.tool, OpenAITool):
+            return self.tool.get_embedding(text, engine)
+        else:
+            raise AssertionError(f"Not supported api type for embeddings: {type(self.tool)}")
     
     def count_tokens(self, texts: List[str], encoding_name: str = 'cl100k_base') -> int:
         if isinstance(self.tool, OpenAITool):
             return self.tool.count_tokens(texts, encoding_name)
+        elif isinstance(self.tool, ClaudeAITool):
+            return sum([anthropic.count_tokens(text) for text in texts])
         else:
             raise AssertionError(f"Not supported api type for token counting: {type(self.tool)}")

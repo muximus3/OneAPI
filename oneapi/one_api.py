@@ -242,7 +242,7 @@ class OneAPITool():
 
     def simple_chat(self, prompt, system="", model="", temperature=1, max_new_tokens=2048, stream=True, **kwargs):
         if isinstance(self.tool, OpenAITool):
-            msgs = [] if system == "" else [ChatGPTMessage(role="system", content=system)]
+            msgs = [] if not system else [ChatGPTMessage(role="system", content=system)]
             msgs.append(ChatGPTMessage(role="user", content=prompt))
             if isinstance(self.tool.method, AzureMethod):
                 args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)

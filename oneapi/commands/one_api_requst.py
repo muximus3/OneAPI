@@ -22,8 +22,9 @@ def main():
     parser.add_argument("-s",
                         "--system",
                         type=str,
+                        default="",
                         help="question",
-                        required=True)
+                        required=False)
     parser.add_argument("-m",
                         "--model",
                         type=str,

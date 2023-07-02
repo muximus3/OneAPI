@@ -59,6 +59,12 @@ class OpenAIDecodingArguments(BaseModel):
     model: str = "gpt-3.5-turbo"
     max_tokens: int = 2048
     temperature: float = 1
+    functions: Optional[list] = None
+    # Controls how the model responds to function calls. 
+    # "none" means the model does not call a function, and responds to the end-user. 
+    # "auto" means the model can pick between an end-user or calling a function. Specifying a particular function via {"name":\ "my_function"} forces the model to call that function. 
+    # "none" is the default when no functions are present. "auto" is the default if functions are present.
+    function_call : Optional[str] = None
     top_p: float = 1
     n: int = 1
     stream: bool = False
@@ -118,7 +124,7 @@ class OpenAITool(AbstractAPITool):
         https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/chatgpt?pivots=programming-language-chat-completions
         https://platform.openai.com/docs/api-reference/chat
         """
-
+        args.stream = False if args.functions is not None else args.stream 
         data = args.dict()
         completion = openai.ChatCompletion.create(**data)
         if data.get("stream", False):
@@ -135,6 +141,8 @@ class OpenAITool(AbstractAPITool):
             full_reply_content = "".join([m.get("content", "") for m in collected_messages])
             return full_reply_content
         else:
+            if args.functions is not None:
+                return completion.choices[0].message.get("function_call")
             return completion.choices[0].message.get("content", "")
 
 
@@ -240,14 +248,21 @@ class OneAPITool():
         with open(file_path, "r") as f:
             return json.load(f)
 
-    def simple_chat(self, prompt, system="", model="", temperature=1, max_new_tokens=2048, stream=True, **kwargs):
+    def simple_chat(self, prompt, system="", functions=None, model="", temperature=1, max_new_tokens=2048, stream=True, **kwargs):
         if isinstance(self.tool, OpenAITool):
             msgs = [] if not system else [ChatGPTMessage(role="system", content=system)]
-            msgs.append(ChatGPTMessage(role="user", content=prompt))
+            if isinstance(prompt, str):
+                msgs.append(ChatGPTMessage(role="user", content=prompt))
+            elif isinstance(prompt, list):
+                msgs.extend(prompt)
+            elif isinstance(prompt, (dict, ChatGPTMessage)):
+                msgs.append(prompt)
+            else:
+                raise AssertionError(f"Prompt must be a string, list of strings, or ChatGPTMessage. Got {type(prompt)} instead.")
             if isinstance(self.tool.method, AzureMethod):
                 args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
             elif isinstance(self.tool.method, OpenAIMethod):
-                args = OpenAIDecodingArguments(messages=msgs, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
+                args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call="auto" if functions else None, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
         elif isinstance(self.tool, ClaudeAITool):
             args = ClaudeDecodingArguments(prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}", model=model if model else "claude-v1.3-100k", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
         else:
@@ -275,3 +290,5 @@ class OneAPITool():
             return sum([anthropic.count_tokens(text) for text in texts])
         else:
             raise AssertionError(f"Not supported api type for token counting: {type(self.tool)}")
+
+

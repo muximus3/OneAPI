@@ -5,8 +5,17 @@ Save a significant amount of ☕️ time by avoiding the need to read multiple A
 
 The currently supported APIs include:
  - [x] OpenAI Official API.
+    - [x] ChatGPT: GPT-3.5-turbo/GPT-4.
+    - [x] Token number counting.
+    - [x] Embedding generation.
+    - [x] Function call.
  - [x] Microsoft Azure OpenAI Resource endpoint API.
+    - [x] ChatGPT: GPT-3.5-turbo/GPT-4.
+    - [x] Token number counting.
+    - [x] Embedding generation.
  - [x] Anthropic Claude series model API.
+    - [x] Claude-v1.3-100k, etc.
+    - [x] Token number counting.
 
 ## Installation
 ```sh

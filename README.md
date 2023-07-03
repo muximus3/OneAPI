@@ -8,7 +8,7 @@ The currently supported APIs include:
     - [x] ChatGPT: GPT-3.5-turbo/GPT-4.
     - [x] Token number counting.
     - [x] Embedding generation.
-    - [x] Function call.
+    - [x] Function calling.
  - [x] Microsoft Azure OpenAI Resource endpoint API.
     - [x] ChatGPT: GPT-3.5-turbo/GPT-4.
     - [x] Token number counting.
@@ -57,7 +57,7 @@ If you are using Azure APIs, you can find relevant information on the Azure reso
 
 `api_type`: Currently supported values are "open_ai", "azure", or "claude".
 
-Here is  simple example:
+#### Chat example:
 ```python
 from oneapi import OneAPITool
 # Two ways to initialize the OneAPITool object  
@@ -73,12 +73,56 @@ print(len(embeddings)))
 print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 ```
 **Note: Currently, `get_embeddings` only support OpenAI or Microsoft Azure API.**
+
+#### Function calling example:
+```python
+from oneapi import OneAPITool
+
+def get_whether_of_city(city: str, date: str) -> dict:
+    """Get the weather of a city at a date
+
+    Args:
+        city (str): City name
+        date (str): Date of the weather
+
+    Returns:
+        Dict: Weather information
+    """
+    return {"city": city, "date": date, "weather": "sunny", "temperature": 30, "air_condition": "good"}
+
+# tool = OneAPITool.from_config(api_key, api_base, api_type)
+tool = OneAPITool.from_config_file("your_config_file.json")
+res = api.simple_chat("What's the weather like in New York on July 10th?", model='gpt-4-0613', functions=[get_whether_of_city])
+print(f'Response:\n{res}')
+arguments = json.loads(res['arguments'])
+wether_info = get_whether_of_city(**arguments)
+print(f'Wether_info:\n{wether_info}')
+
+```
+<details open> <summary>Output detail</summary>
+
+Response:
+```json
+{
+  "arguments": "{\n  \"city\": \"New York\",\n  \"date\": \"July 10th\"\n}",
+  "name": "get_whether_of_city"
+}
+```
+Wether_info: 
+```json
+{'city': 'New York', 'date': 'July 10th', 'weather': 'sunny', 'temperature': 30, 'air_condition': 'good'}
+```
+</details>
+
+
 ### 2. Using command line
+
 ```sh
 open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 --model gpt-3.5-turbo \
 --prompt "1+1=?" 
 ```
+
 <details open><summary>Output detail</summary>
 
 ```text

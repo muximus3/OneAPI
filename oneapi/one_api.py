@@ -7,8 +7,10 @@ from pydantic import BaseModel
 from abc import ABC, abstractmethod
 import sys
 import os
+from typing import Callable, Optional, Sequence, List
 import tiktoken
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
+from oneapi.utils import generate_function_description
 
 CLAUDE_TEMPLATE = "\n\nHuman: {prompt}\n\nAssistant:"
 
@@ -127,7 +129,10 @@ class OpenAITool(AbstractAPITool):
         data = args.dict()
         is_function_call = data.get("functions", None) is not None
         if is_function_call:
-            data['stream'] = False  
+            data["stream"] = False  
+        else:
+            data.pop("functions")
+            data.pop("function_call")
         completion = openai.ChatCompletion.create(**data)
         if data.get("stream", False):
             # create variables to collect the stream of chunks
@@ -144,7 +149,9 @@ class OpenAITool(AbstractAPITool):
             return full_reply_content
         else:
             if is_function_call:
-                return completion.choices[0].message.get("function_call")
+                function_args = completion.choices[0].message.get("function_call")
+                if function_args is not None:
+                    return function_args
             return completion.choices[0].message.get("content", "")
 
 
@@ -250,7 +257,7 @@ class OneAPITool():
         with open(file_path, "r") as f:
             return json.load(f)
 
-    def simple_chat(self, prompt, system="", functions=None, model="", temperature=1, max_new_tokens=2048, stream=True, **kwargs):
+    def simple_chat(self, prompt: str|list|dict|ChatGPTMessage, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
         if isinstance(self.tool, OpenAITool):
             msgs = [] if not system else [ChatGPTMessage(role="system", content=system)]
             if isinstance(prompt, str):
@@ -264,7 +271,13 @@ class OneAPITool():
             if isinstance(self.tool.method, AzureMethod):
                 args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
             elif isinstance(self.tool.method, OpenAIMethod):
-                args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call="auto" if functions else None, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
+                if functions is not None and isinstance(functions, list):
+                    functions = [generate_function_description(func) for func in functions]
+                if function_call is None and functions is not None:
+                    function_call = "auto"
+                if function_call is not None and functions is None:
+                    function_call = None
+                args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call=function_call, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
         elif isinstance(self.tool, ClaudeAITool):
             args = ClaudeDecodingArguments(prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}", model=model if model else "claude-v1.3-100k", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
         else:
@@ -292,5 +305,6 @@ class OneAPITool():
             return sum([anthropic.count_tokens(text) for text in texts])
         else:
             raise AssertionError(f"Not supported api type for token counting: {type(self.tool)}")
+
 
 

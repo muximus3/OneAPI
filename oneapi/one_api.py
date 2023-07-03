@@ -13,10 +13,6 @@ sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/
 from oneapi.utils import generate_function_description
 
 CLAUDE_TEMPLATE = "\n\nHuman: {prompt}\n\nAssistant:"
-
-class ChatGPTMessage(BaseModel):
-    role: str
-    content: str
     
 class AbstrctMethod(BaseModel):
     api_key: str
@@ -57,7 +53,7 @@ class OpenAIMethod(AbstrctMethod):
     method_commpletions = "completions"
 
 class OpenAIDecodingArguments(BaseModel):
-    messages: List[ChatGPTMessage] 
+    messages: List[dict] 
     model: str = "gpt-3.5-turbo"
     max_tokens: int = 2048
     temperature: float = 1
@@ -76,7 +72,7 @@ class OpenAIDecodingArguments(BaseModel):
     user: Optional[str] = ""
 
 class AzureDecodingArguments(BaseModel):
-    messages: List[ChatGPTMessage] 
+    messages: List[dict] 
     engine: str = "gpt-35-turbo" # The deployment name you chose when you deployed the ChatGPT or GPT-4 model
     max_tokens: int = 2048
     temperature: float = 1
@@ -148,11 +144,11 @@ class OpenAITool(AbstractAPITool):
             full_reply_content = "".join([m.get("content", "") for m in collected_messages])
             return full_reply_content
         else:
+            response_message = completion.choices[0].message
             if is_function_call:
-                function_args = completion.choices[0].message.get("function_call")
-                if function_args is not None:
-                    return function_args
-            return completion.choices[0].message.get("content", "")
+                if response_message["function_call"] is not None:
+                    return response_message
+            return response_message.get("content", "")
 
 
     def get_embeddings(self, texts: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
@@ -257,14 +253,14 @@ class OneAPITool():
         with open(file_path, "r") as f:
             return json.load(f)
 
-    def simple_chat(self, prompt: str|list|dict|ChatGPTMessage, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
+    def simple_chat(self, prompt: str|list|dict, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
         if isinstance(self.tool, OpenAITool):
-            msgs = [] if not system else [ChatGPTMessage(role="system", content=system)]
+            msgs = [] if not system else [dict(role="system", content=system)]
             if isinstance(prompt, str):
-                msgs.append(ChatGPTMessage(role="user", content=prompt))
+                msgs.append(dict(role="user", content=prompt))
             elif isinstance(prompt, list):
                 msgs.extend(prompt)
-            elif isinstance(prompt, (dict, ChatGPTMessage)):
+            elif isinstance(prompt, dict):
                 msgs.append(prompt)
             else:
                 raise AssertionError(f"Prompt must be a string, list of strings, or ChatGPTMessage. Got {type(prompt)} instead.")
@@ -308,3 +304,27 @@ class OneAPITool():
 
 
 
+if __name__ == "__main__":
+    api = OneAPITool.from_config_file("../ant/config/openapi_official_chenghao.json")
+    def get_whether_of_city(city: str, date: str) -> dict:
+        """Get the weather of a city at a date
+
+        Args:
+            city (str): City name
+            date (str): Date of the weather
+
+        Returns:
+            Dict: Weather information
+        """
+        return {"city": city, "date": date, "weather": "sunny", "temperature": 30, "air_condition": "good"}
+    msgs = [{"role": "user", "content": "What's the weather like in New York on July 10th?"}]
+    function_response = api.simple_chat(msgs, model='gpt-3.5-turbo-0613', functions=[get_whether_of_city])
+    print(f'Function response:\n{function_response}')
+    function_call = function_response['function_call']
+    arguments = json.loads(function_call['arguments'])
+    wether_info = get_whether_of_city(**arguments)
+    print(f'Wether_info:\n{wether_info}')
+    msgs.append(function_response)
+    msgs.append({"role": "function", "name": function_call["name"], "content": json.dumps(wether_info)})
+    second_res = api.simple_chat(msgs, model='gpt-3.5-turbo-0613')
+    print(f'Second response:\n{second_res}')

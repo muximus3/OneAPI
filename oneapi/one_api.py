@@ -124,8 +124,10 @@ class OpenAITool(AbstractAPITool):
         https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/chatgpt?pivots=programming-language-chat-completions
         https://platform.openai.com/docs/api-reference/chat
         """
-        args.stream = False if args.functions is not None else args.stream 
         data = args.dict()
+        is_function_call = data.get("functions", None) is not None
+        if is_function_call:
+            data['stream'] = False  
         completion = openai.ChatCompletion.create(**data)
         if data.get("stream", False):
             # create variables to collect the stream of chunks
@@ -141,7 +143,7 @@ class OpenAITool(AbstractAPITool):
             full_reply_content = "".join([m.get("content", "") for m in collected_messages])
             return full_reply_content
         else:
-            if args.functions is not None:
+            if is_function_call:
                 return completion.choices[0].message.get("function_call")
             return completion.choices[0].message.get("content", "")
 

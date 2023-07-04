@@ -9,9 +9,16 @@ import sys
 import os
 from typing import Callable, Optional, Sequence, List
 import tiktoken
+import logging
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
 from oneapi.utils import generate_function_description
-
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(filename)s:%(lineno)d %(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    filemode="a"
+)
 CLAUDE_TEMPLATE = "\n\nHuman: {prompt}\n\nAssistant:"
     
 class AbstrctMethod(BaseModel):
@@ -151,6 +158,9 @@ class OpenAITool(AbstractAPITool):
             return response_message.get("content", "")
 
 
+         
+
+
     def get_embeddings(self, texts: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
         assert len(texts) <= 2048, "The batch size should not be larger than 2048."
         # replace newlines, which can negatively affect performance.
@@ -282,6 +292,64 @@ class OneAPITool():
         response = self.tool.simple_chat(args)
         return response
 
+    def function_chat(self, prompt: str|list|dict, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
+        """A full chain of function calling.
+        Step1: Call the model with functions and user prompt.
+        Step2: Use the model response to call your API.
+        Step3: Send the API response back to the model to summarize.
+
+        Args:
+            prompt (str | list | dict): User input.
+            system (str, optional): System message for ChatGPT. Defaults to "".
+            functions (List[Callable], optional): A list of functions for model to decide with function to use. Defaults to None.
+            function_call (Optional[str | dict], optional): Controls how the model responds to function calls. "none" means the model does not call a function, and responds to the end-user. "auto" means the model can pick between an end-user or calling a function. Specifying a particular function via {"name":\ "my_function"} forces the model to call that function. "none" is the default when no functions are present. "auto" is the default if functions are present.. Defaults to None.
+            model (str, optional): Model name. Defaults to GPT-3.5-turbo/Claude-v1.3-100k. 
+            temperature (int, optional): What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. Defaults to 1.
+            max_new_tokens (int, optional): Defaults to 2048.
+            stream (bool, optional): Defaults to True.
+
+        Raises:
+            AssertionError: When no function response found. Usually because of prompt injection.
+        """
+        assert len(functions) > 0, "No functions found."
+        if isinstance(self.tool, OpenAITool):
+            msgs = [] if not system else [dict(role="system", content=system)]
+            if isinstance(prompt, str):
+                msgs.append(dict(role="user", content=prompt))
+            elif isinstance(prompt, list):
+                msgs.extend(prompt)
+            elif isinstance(prompt, dict):
+                msgs.append(prompt)
+            else:
+                raise AssertionError(f"Prompt must be a string, list of strings, or ChatGPTMessage. Got {type(prompt)} instead.")
+            function_response = self.simple_chat(prompt, system, functions, function_call, model, temperature, max_new_tokens, stream, **kwargs)
+            function_response_detail = function_response.get("function_call")
+            logger.debug(f"Function calling step1, function_response_detail: {function_response_detail}")
+            if not function_response_detail:
+                raise AssertionError(f"Function call not found in response: {function_response}")
+            arguments = json.loads(function_response_detail["arguments"])
+            function_name = function_response_detail["name"]
+            # force to use the function name in function_call
+            if isinstance(function_call, dict) and "name" in function_call:
+                function_name = function_call["name"] 
+            func_name_vs_func = {func.__name__: func for func in functions}
+            func = func_name_vs_func.get(function_name)
+            if not func:
+                raise AssertionError(f"Chosen function {function_name} not found in functions: {functions}")
+            api_response = func(**arguments)
+            logger.debug(f"Function calling step2, calling fun: {function_name}, api_response: {api_response}")
+            msgs.append(function_response)
+            msgs.append({"role": "function", "name": function_name, "content": json.dumps(api_response)})
+            final_response = self.simple_chat(msgs, model=model, temperature=temperature, max_new_tokens=max_new_tokens, stream=stream, **kwargs)
+            logger.debug(f"Function calling step3, Model summarize, final_response: {final_response}")
+            return final_response
+        else:
+            raise AssertionError(f"Function chat currently only support api type: {type(self.tool)}")
+
+        
+
+
+
     def get_embeddings(self, texts: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
         if isinstance(self.tool, OpenAITool):
             return self.tool.get_embeddings(texts, engine)  
@@ -318,13 +386,15 @@ class OneAPITool():
 #         """
 #         return {"city": city, "date": date, "weather": "sunny", "temperature": 30, "air_condition": "good"}
 #     msgs = [{"role": "user", "content": "What's the weather like in New York on July 10th?"}]
-#     function_response = api.simple_chat(msgs, model='gpt-3.5-turbo-0613', functions=[get_whether_of_city])
-#     print(f'Function response:\n{function_response}')
-#     function_call = function_response['function_call']
-#     arguments = json.loads(function_call['arguments'])
-#     wether_info = get_whether_of_city(**arguments)
-#     print(f'Wether_info:\n{wether_info}')
-#     msgs.append(function_response)
-#     msgs.append({"role": "function", "name": function_call["name"], "content": json.dumps(wether_info)})
-#     second_res = api.simple_chat(msgs, model='gpt-3.5-turbo-0613')
-#     print(f'Second response:\n{second_res}')
+#     res = api.function_chat(msgs, functions=[get_whether_of_city])
+#     print(res)
+    # function_response = api.simple_chat(msgs, model='gpt-3.5-turbo-0613', functions=[get_whether_of_city])
+    # print(f'Function response:\n{function_response}')
+    # function_call = function_response['function_call']
+    # arguments = json.loads(function_call['arguments'])
+    # wether_info = get_whether_of_city(**arguments)
+    # print(f'Wether_info:\n{wether_info}')
+    # msgs.append(function_response)
+    # msgs.append({"role": "function", "name": function_call["name"], "content": json.dumps(wether_info)})
+    # second_res = api.simple_chat(msgs, model='gpt-3.5-turbo-0613')
+    # print(f'Second response:\n{second_res}')

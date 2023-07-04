@@ -73,8 +73,7 @@ print(len(embeddings)))
 print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 ```
 **Note: Currently, `get_embeddings` only support OpenAI or Microsoft Azure API.**
-
-#### Function calling example:
+#### Simple function calling example:
 ```python
 from oneapi import OneAPITool
 import json
@@ -93,6 +92,31 @@ def get_whether_of_city(city: str, date: str) -> dict:
 
 # tool = OneAPITool.from_config(api_key, api_base, api_type)
 tool = OneAPITool.from_config_file("your_config_file.json")
+msgs = [{"role": "user", "content": "What's the weather like in New York on July 10th?"}]
+res = api.function_chat(msgs, functions=[get_whether_of_city])
+print(res)
+```
+
+#### Custom function calling example:
+```python
+from oneapi import OneAPITool
+import json
+
+def get_whether_of_city(city: str, date: str) -> dict:
+    """Get the weather of a city at a date
+
+    Args:
+        city (str): City name
+        date (str): Date of the weather
+
+    Returns:
+        Dict: Weather information
+    """
+    return {"city": city, "date": date, "weather": "sunny", "temperature": 30, "air_condition": "good"}
+
+# tool = OneAPITool.from_config(api_key, api_base, api_type)
+tool = OneAPITool.from_config_file("your_config_file.json")
+msgs = [{"role": "user", "content": "What's the weather like in New York on July 10th?"}]
 function_response = tool.simple_chat(msgs, model="gpt-3.5-turbo-0613", functions=[get_whether_of_city])
 print(f"Function response:\n{function_response}")
 function_call = function_response["function_call"]

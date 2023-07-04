@@ -74,9 +74,9 @@ print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 ```
 **Note: Currently, `get_embeddings` only support OpenAI or Microsoft Azure API.**
 #### Simple function calling example:
+
 ```python
 from oneapi import OneAPITool
-import json
 
 def get_whether_of_city(city: str, date: str) -> dict:
     """Get the weather of a city at a date
@@ -96,6 +96,12 @@ msgs = [{"role": "user", "content": "What's the weather like in New York on July
 res = api.function_chat(msgs, functions=[get_whether_of_city])
 print(res)
 ```
+
+<details open> <summary>Output detail</summary>
+```text
+On July 10th, 2022, the weather in New York is expected to be sunny. The temperature will be around 30 degrees Celsius (86 degrees Fahrenheit). The air quality is expected to be good.
+```
+</details>
 
 #### Custom function calling example:
 ```python

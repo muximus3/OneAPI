@@ -10,6 +10,7 @@ import os
 from typing import Callable, Optional, Sequence, List
 import tiktoken
 import logging
+from openai.openai_object import OpenAIObject
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
 from oneapi.utils import generate_function_description
 logger = logging.getLogger(__name__)
@@ -153,7 +154,7 @@ class OpenAITool(AbstractAPITool):
         else:
             response_message = completion.choices[0].message
             if is_function_call:
-                if response_message["function_call"] is not None:
+                if response_message.get("function_call") is not None:
                     return response_message
             return response_message.get("content", "")
 
@@ -325,7 +326,7 @@ class OneAPITool():
             function_response = self.simple_chat(prompt, system, functions, function_call, model, temperature, max_new_tokens, stream, **kwargs)
             function_response_detail = function_response.get("function_call")
             logger.debug(f"Function calling step1, function_response_detail: {function_response_detail}")
-            if not function_response_detail:
+            if not function_response_detail or not isinstance(function_response_detail, dict):
                 raise AssertionError(f"Function call not found in response: {function_response}")
             arguments = json.loads(function_response_detail["arguments"])
             function_name = function_response_detail["name"]
@@ -369,31 +370,3 @@ class OneAPITool():
             return sum([anthropic.count_tokens(text) for text in texts])
         else:
             raise AssertionError(f"Not supported api type for token counting: {type(self.tool)}")
-
-
-
-# if __name__ == "__main__":
-#     api = OneAPITool.from_config_file("../ant/config/openapi_official_chenghao.json")
-#     def get_whether_of_city(city: str, date: str) -> dict:
-#         """Get the weather of a city at a date
-
-#         Args:
-#             city (str): City name
-#             date (str): Date of the weather
-
-#         Returns:
-#             Dict: Weather information
-#         """
-#         return {"city": city, "date": date, "weather": "sunny", "temperature": 30, "air_condition": "good"}
-#     res = api.function_chat("What's the weather like in New York on July 10th?", functions=[get_whether_of_city])
-#     print(res)
-    # function_response = api.simple_chat(msgs, model='gpt-3.5-turbo-0613', functions=[get_whether_of_city])
-    # print(f'Function response:\n{function_response}')
-    # function_call = function_response['function_call']
-    # arguments = json.loads(function_call['arguments'])
-    # wether_info = get_whether_of_city(**arguments)
-    # print(f'Wether_info:\n{wether_info}')
-    # msgs.append(function_response)
-    # msgs.append({"role": "function", "name": function_call["name"], "content": json.dumps(wether_info)})
-    # second_res = api.simple_chat(msgs, model='gpt-3.5-turbo-0613')
-    # print(f'Second response:\n{second_res}')

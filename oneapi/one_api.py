@@ -312,7 +312,7 @@ class OneAPITool():
             AssertionError: When no function response found. Usually because of prompt injection.
         """
         assert len(functions) > 0, "No functions found."
-        if isinstance(self.tool, OpenAITool):
+        if isinstance(self.tool, OpenAITool) and isinstance(self.tool.method, OpenAIMethod):
             msgs = [] if not system else [dict(role="system", content=system)]
             if isinstance(prompt, str):
                 msgs.append(dict(role="user", content=prompt))

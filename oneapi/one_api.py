@@ -135,8 +135,9 @@ class OpenAITool(AbstractAPITool):
         if is_function_call:
             data["stream"] = False  
         else:
-            data.pop("functions")
-            data.pop("function_call")
+            if isinstance(args, OpenAIDecodingArguments):
+                data.pop("functions")
+                data.pop("function_call")
         completion = openai.ChatCompletion.create(**data)
         if data.get("stream", False):
             # create variables to collect the stream of chunks

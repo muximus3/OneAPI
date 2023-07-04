@@ -70,7 +70,7 @@ class OpenAIDecodingArguments(BaseModel):
     # "none" means the model does not call a function, and responds to the end-user. 
     # "auto" means the model can pick between an end-user or calling a function. Specifying a particular function via {"name":\ "my_function"} forces the model to call that function. 
     # "none" is the default when no functions are present. "auto" is the default if functions are present.
-    function_call : Optional[str] = None
+    function_call : Optional[str|dict] = None
     top_p: float = 1
     n: int = 1
     stream: bool = False
@@ -324,10 +324,10 @@ class OneAPITool():
             else:
                 raise AssertionError(f"Prompt must be a string, list of strings, or ChatGPTMessage. Got {type(prompt)} instead.")
             function_response = self.simple_chat(prompt, system, functions, function_call, model, temperature, max_new_tokens, stream, **kwargs)
+            if not isinstance(function_response, dict) or not function_response_detail.get("function_call"):
+                raise AssertionError(f"Function call not found in response: {function_response}")
             function_response_detail = function_response.get("function_call")
             logger.debug(f"Function calling step1, function_response_detail: {function_response_detail}")
-            if not function_response_detail or not isinstance(function_response_detail, dict):
-                raise AssertionError(f"Function call not found in response: {function_response}")
             arguments = json.loads(function_response_detail["arguments"])
             function_name = function_response_detail["name"]
             # force to use the function name in function_call

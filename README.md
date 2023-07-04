@@ -92,16 +92,16 @@ def get_whether_of_city(city: str, date: str) -> dict:
 
 # tool = OneAPITool.from_config(api_key, api_base, api_type)
 tool = OneAPITool.from_config_file("your_config_file.json")
-function_response = tool.simple_chat(msgs, model='gpt-3.5-turbo-0613', functions=[get_whether_of_city])
-print(f'Function response:\n{function_response}')
-function_call = function_response['function_call']
-arguments = json.loads(function_call['arguments'])
+function_response = tool.simple_chat(msgs, model="gpt-3.5-turbo-0613", functions=[get_whether_of_city])
+print(f"Function response:\n{function_response}")
+function_call = function_response["function_call"]
+arguments = json.loads(function_call["arguments"])
 wether_info = get_whether_of_city(**arguments)
-print(f'Wether_info:\n{wether_info}')
+print(f"Wether_info:\n{wether_info}")
 msgs.append(function_response)
 msgs.append({"role": "function", "name": function_call["name"], "content": json.dumps(wether_info)})
-second_res = api.simple_chat(msgs, model='gpt-3.5-turbo-0613')
-print(f'Second response:\n{second_res}')
+second_res = api.simple_chat(msgs, model="gpt-3.5-turbo-0613")
+print(f"Second response:\n{second_res}")
 
 ```
 <details open> <summary>Output detail</summary>
@@ -109,13 +109,17 @@ print(f'Second response:\n{second_res}')
 Function response:
 ```json
 {
-  "arguments": "{\n  \"city\": \"New York\",\n  \"date\": \"July 10th\"\n}",
-  "name": "get_whether_of_city"
+  "role": "assistant",
+  "content": null,
+  "function_call": {
+    "name": "get_whether_of_city",
+    "arguments": "{\n  \"city\": \"New York\",\n  \"date\": \"2022-07-10\"\n}"
+  }
 }
 ```
 Wether_info: 
 ```json
-{'city': 'New York', 'date': 'July 10th', 'weather': 'sunny', 'temperature': 30, 'air_condition': 'good'}
+{"city": "New York", "date": "July 10th", "weather": "sunny", "temperature": 30, "air_condition": "good"}
 ```
 
 Second response:

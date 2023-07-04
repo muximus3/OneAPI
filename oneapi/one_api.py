@@ -304,27 +304,27 @@ class OneAPITool():
 
 
 
-if __name__ == "__main__":
-    api = OneAPITool.from_config_file("../ant/config/openapi_official_chenghao.json")
-    def get_whether_of_city(city: str, date: str) -> dict:
-        """Get the weather of a city at a date
+# if __name__ == "__main__":
+#     api = OneAPITool.from_config_file("../ant/config/openapi_official_chenghao.json")
+#     def get_whether_of_city(city: str, date: str) -> dict:
+#         """Get the weather of a city at a date
 
-        Args:
-            city (str): City name
-            date (str): Date of the weather
+#         Args:
+#             city (str): City name
+#             date (str): Date of the weather
 
-        Returns:
-            Dict: Weather information
-        """
-        return {"city": city, "date": date, "weather": "sunny", "temperature": 30, "air_condition": "good"}
-    msgs = [{"role": "user", "content": "What's the weather like in New York on July 10th?"}]
-    function_response = api.simple_chat(msgs, model='gpt-3.5-turbo-0613', functions=[get_whether_of_city])
-    print(f'Function response:\n{function_response}')
-    function_call = function_response['function_call']
-    arguments = json.loads(function_call['arguments'])
-    wether_info = get_whether_of_city(**arguments)
-    print(f'Wether_info:\n{wether_info}')
-    msgs.append(function_response)
-    msgs.append({"role": "function", "name": function_call["name"], "content": json.dumps(wether_info)})
-    second_res = api.simple_chat(msgs, model='gpt-3.5-turbo-0613')
-    print(f'Second response:\n{second_res}')
+#         Returns:
+#             Dict: Weather information
+#         """
+#         return {"city": city, "date": date, "weather": "sunny", "temperature": 30, "air_condition": "good"}
+#     msgs = [{"role": "user", "content": "What's the weather like in New York on July 10th?"}]
+#     function_response = api.simple_chat(msgs, model='gpt-3.5-turbo-0613', functions=[get_whether_of_city])
+#     print(f'Function response:\n{function_response}')
+#     function_call = function_response['function_call']
+#     arguments = json.loads(function_call['arguments'])
+#     wether_info = get_whether_of_city(**arguments)
+#     print(f'Wether_info:\n{wether_info}')
+#     msgs.append(function_response)
+#     msgs.append({"role": "function", "name": function_call["name"], "content": json.dumps(wether_info)})
+#     second_res = api.simple_chat(msgs, model='gpt-3.5-turbo-0613')
+#     print(f'Second response:\n{second_res}')

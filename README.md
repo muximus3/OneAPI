@@ -18,6 +18,9 @@ The currently supported APIs include:
     - [x] Token number counting.
 
 ## Installation
+
+Requirements Python >=3.10
+
 ```sh
 pip install -U one-api-tool
 ```

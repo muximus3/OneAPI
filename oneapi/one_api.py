@@ -385,8 +385,7 @@ class OneAPITool():
 #             Dict: Weather information
 #         """
 #         return {"city": city, "date": date, "weather": "sunny", "temperature": 30, "air_condition": "good"}
-#     msgs = [{"role": "user", "content": "What's the weather like in New York on July 10th?"}]
-#     res = api.function_chat(msgs, functions=[get_whether_of_city])
+#     res = api.function_chat("What's the weather like in New York on July 10th?", functions=[get_whether_of_city])
 #     print(res)
     # function_response = api.simple_chat(msgs, model='gpt-3.5-turbo-0613', functions=[get_whether_of_city])
     # print(f'Function response:\n{function_response}')

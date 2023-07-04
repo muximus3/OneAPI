@@ -92,7 +92,7 @@ def get_whether_of_city(city: str, date: str) -> dict:
 
 # tool = OneAPITool.from_config(api_key, api_base, api_type)
 tool = OneAPITool.from_config_file("your_config_file.json")
-res = api.function_chat("What's the weather like in New York on July 10th?", functions=[get_whether_of_city])
+res = tool.function_chat("What's the weather like in New York on July 10th?", functions=[get_whether_of_city])
 print(res)
 ```
 

@@ -98,9 +98,12 @@ print(res)
 ```
 
 <details open> <summary>Output detail</summary>
+
 ```text
+
 On July 10th, 2022, the weather in New York is expected to be sunny. The temperature will be around 30 degrees Celsius (86 degrees Fahrenheit). The air quality is expected to be good.
 ```
+
 </details>
 
 #### Custom function calling example:

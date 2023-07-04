@@ -77,6 +77,7 @@ print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 #### Function calling example:
 ```python
 from oneapi import OneAPITool
+import json
 
 def get_whether_of_city(city: str, date: str) -> dict:
     """Get the weather of a city at a date

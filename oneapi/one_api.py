@@ -159,7 +159,35 @@ class OpenAITool(AbstractAPITool):
                     return response_message
             return response_message.get("content", "")
 
-
+    async def asimple_chat(self, args: OpenAIDecodingArguments):
+        data = args.dict()
+        is_function_call = data.get("functions", None) is not None
+        if is_function_call:
+            data["stream"] = False  
+        else:
+            if isinstance(args, OpenAIDecodingArguments):
+                data.pop("functions")
+                data.pop("function_call")
+        completion = await openai.ChatCompletion.acreate(**data)
+        if data.get("stream", False):
+            # create variables to collect the stream of chunks
+            collected_chunks = []
+            collected_messages = []
+            # iterate through the stream of events
+            async for chunk in completion:
+                collected_chunks.append(chunk)  # save the event response
+                chunk_choice = chunk["choices"][0]
+                chunk_message = chunk_choice["delta"]  # extract the message
+                finish_reason = chunk_choice["finish_reason"]
+                collected_messages.append(chunk_message)  # save the message
+            full_reply_content = "".join([m.get("content", "") for m in collected_messages])
+            return full_reply_content
+        else:
+            response_message = completion.choices[0].message
+            if is_function_call:
+                if response_message.get("function_call") is not None:
+                    return response_message
+            return response_message.get("content", "")
          
 
 
@@ -207,7 +235,7 @@ class ClaudeAITool(AbstractAPITool):
         self.method = method
         self.client = anthropic.Client(method.api_key)
     
-    async def simple_chat(self, args: ClaudeDecodingArguments):
+    async def asimple_chat(self, args: ClaudeDecodingArguments):
         if args.stream:
             resp = await self.client.acompletion_stream(**args.dict())
             async for data in resp:
@@ -292,6 +320,35 @@ class OneAPITool():
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
 
         response = self.tool.simple_chat(args)
+        return response
+
+    async def asimple_chat(self, prompt: str|list|dict, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
+        if isinstance(self.tool, OpenAITool):
+            msgs = [] if not system else [dict(role="system", content=system)]
+            if isinstance(prompt, str):
+                msgs.append(dict(role="user", content=prompt))
+            elif isinstance(prompt, list):
+                msgs.extend(prompt)
+            elif isinstance(prompt, dict):
+                msgs.append(prompt)
+            else:
+                raise AssertionError(f"Prompt must be a string, list of strings, or ChatGPTMessage. Got {type(prompt)} instead.")
+            if isinstance(self.tool.method, AzureMethod):
+                args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
+            elif isinstance(self.tool.method, OpenAIMethod):
+                if functions is not None and isinstance(functions, list):
+                    functions = [generate_function_description(func) for func in functions]
+                if function_call is None and functions is not None:
+                    function_call = "auto"
+                if function_call is not None and functions is None:
+                    function_call = None
+                args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call=function_call, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
+        elif isinstance(self.tool, ClaudeAITool):
+            args = ClaudeDecodingArguments(prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}", model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
+        else:
+            raise AssertionError(f"Not supported api type: {type(self.tool)}")
+
+        response = await self.tool.asimple_chat(args)
         return response
 
     def function_chat(self, prompt: str|list|dict, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):

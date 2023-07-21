@@ -63,12 +63,15 @@ If you are using Azure APIs, you can find relevant information on the Azure reso
 #### Chat example:
 ```python
 from oneapi import OneAPITool
+import asyncio
 # Two ways to initialize the OneAPITool object  
 # tool = OneAPITool.from_config(api_key, api_base, api_type)
 tool = OneAPITool.from_config_file("your_config_file.json")
 # Say hello to ChatGPT/Claude/GPT-4
 res = tool.simple_chat("Hello AI!")
 print(res)
+# Async chat to ChatGPT/Claude/GPT-4 with `stream=False`
+res = asyncio.run(tool.asimple_chat('How\'s the weather today?', model='gpt-4', stream=False))
 # Get embeddings of some sentences for further usage, e.g., clustering
 embeddings = tool.get_embeddings(["Hello AI!", "Hello world!"])
 print(len(embeddings)))
@@ -211,6 +214,7 @@ The total length of input tokens and generated tokens is limited by the model's 
 
 ## ToDo
 - [ ] Batch requests.
-- [ ] OpenAI function_call.
+- [x] OpenAI function_call.
 - [x] Token number counting.
+- [x] Async requests.
 - [ ] Custom token budget.

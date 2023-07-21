@@ -26,6 +26,7 @@ class AbstrctMethod(BaseModel):
     api_key: str
     api_base: str
     api_type: str
+    api_version: str
     method_list_models :str 
     method_model_info :str
     method_chat :str
@@ -35,6 +36,7 @@ class ClaudeMethod(AbstrctMethod):
     api_key: str
     api_base: str = "https://api.anthropic.com",
     api_type: str = "claude"
+    api_version: str = None
     method_list_models = ""
     method_model_info = ""
     method_chat = "/v1/complete"
@@ -55,6 +57,7 @@ class OpenAIMethod(AbstrctMethod):
     api_key: str
     api_base: str = "https://api.openai.com/v1"
     api_type: str = "open_ai"
+    api_version: str = None
     method_list_models = "models"
     method_model_info = "models"
     method_chat = "/chat/completions"
@@ -116,20 +119,22 @@ class OpenAITool(AbstractAPITool):
     def __init__(self,method : AbstrctMethod) -> None:
         self.method = method
         self.encoder = None
-        if isinstance(self.method, AzureMethod):
-            openai.api_key = self.method.api_key
-            openai.api_base = self.method.api_base
-            openai.api_type = self.method.api_type
-            openai.api_version = self.method.api_version
-        else:
-            openai.api_key = self.method.api_key
-            openai.api_base = self.method.api_base
+
+
+    def reset_environment(self):
+        """Reset the environment variables to the default values. When using asyncio to all multiple apis, this function should be called before each api call.
+        """
+        openai.api_key = self.method.api_key
+        openai.api_base = self.method.api_base
+        openai.api_type = self.method.api_type
+        openai.api_version = self.method.api_version
 
     def simple_chat(self, args: OpenAIDecodingArguments):
         """
         https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/chatgpt?pivots=programming-language-chat-completions
         https://platform.openai.com/docs/api-reference/chat
         """
+        self.reset_environment()
         data = args.dict()
         is_function_call = data.get("functions", None) is not None
         if is_function_call:
@@ -160,6 +165,7 @@ class OpenAITool(AbstractAPITool):
             return response_message.get("content", "")
 
     async def asimple_chat(self, args: OpenAIDecodingArguments):
+        self.reset_environment()
         data = args.dict()
         is_function_call = data.get("functions", None) is not None
         if is_function_call:
@@ -168,7 +174,7 @@ class OpenAITool(AbstractAPITool):
             if isinstance(args, OpenAIDecodingArguments):
                 data.pop("functions")
                 data.pop("function_call")
-        completion = await openai.ChatCompletion.acreate(**data)
+        completion = await openai.ChatCompletion.acreate(**data, api_key=self.method.api_key, api_base=self.method.api_base, api_type=self.method.api_type, api_version=self.method.api_version)
         if data.get("stream", False):
             # create variables to collect the stream of chunks
             collected_chunks = []
@@ -192,6 +198,7 @@ class OpenAITool(AbstractAPITool):
 
 
     def get_embeddings(self, texts: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
+        self.reset_environment()
         assert len(texts) <= 2048, "The batch size should not be larger than 2048."
         # replace newlines, which can negatively affect performance.
         texts = [text.replace("\n", " ") for text in texts]
@@ -202,11 +209,13 @@ class OpenAITool(AbstractAPITool):
 
 
     def get_embedding(self, text: str, engine="text-embedding-ada-002") -> List[float]:
+        self.reset_environment()
         # replace newlines, which can negatively affect performance.
         text = text.replace("\n", " ")
         return openai.Embedding.create(input=[text], engine=engine)["data"][0]["embedding"]
 
     def count_tokens(self, texts: List[str], encoding_name: str = 'cl100k_base') -> int:
+        self.reset_environment()
         """
         Encoding name	OpenAI models
         cl100k_base	    gpt-4, gpt-3.5-turbo, text-embedding-ada-002

@@ -46,7 +46,7 @@ class AzureMethod(AbstrctMethod):
     api_key: str
     api_base: str # Your Azure OpenAI resource's endpoint value.
     api_type: str = "azure"
-    api_version = "2023-03-15-preview" # Official API version, usually there is no need to modify this field.
+    api_version = "2023-07-01-preview" # Official API version, usually there is no need to modify this field.
     deployment_name = "gpt-35-turbo" # The deployment name you chose when you deployed the ChatGPT or GPT-4 model, used for raw http requests
     method_chat = f"/openai/deployments/{deployment_name}/chat/completions?api-version={api_version}" # used for raw http requests
     method_list_models :str = "" 
@@ -174,7 +174,7 @@ class OpenAITool(AbstractAPITool):
             if isinstance(args, OpenAIDecodingArguments):
                 data.pop("functions")
                 data.pop("function_call")
-        completion = await openai.ChatCompletion.acreate(**data, api_key=self.method.api_key, api_base=self.method.api_base, api_type=self.method.api_type, api_version=self.method.api_version)
+        completion = await openai.ChatCompletion.acreate(**data)
         if data.get("stream", False):
             # create variables to collect the stream of chunks
             collected_chunks = []
@@ -279,18 +279,21 @@ class OneAPITool():
         if api_type == "claude":
             return cls(ClaudeAITool(ClaudeMethod(api_key=config["api_key"], api_base=config["api_base"])))
         elif api_type == "azure":
-            return cls(OpenAITool(AzureMethod(api_key=config["api_key"], api_base=config["api_base"])))
+            api_version = config.get("api_version")
+            if api_version is None:
+                api_version = "2023-07-01-preview"
+            return cls(OpenAITool(AzureMethod(api_key=config["api_key"], api_base=config["api_base"], api_version=api_version)))
         elif api_type == "open_ai":
             return cls(OpenAITool(OpenAIMethod(api_key=config["api_key"], api_base=config["api_base"])))
         else:
             raise AssertionError(f"Couldn\'t find API type in config file: {config_file}. Please specify \"api_type\" as \"claude\", \"azure\", or \"open_ai\".")
 
     @classmethod
-    def from_config(cls, api_key, api_base, api_type):
+    def from_config(cls, api_key, api_base, api_type, api_version="2023-07-01-preview"):
         if api_type == "claude":
             return cls(ClaudeAITool(ClaudeMethod(api_key=api_key, api_base=api_base)))
         elif api_type == "azure":
-            return cls(OpenAITool(AzureMethod(api_key=api_key, api_base=api_base)))
+            return cls(OpenAITool(AzureMethod(api_key=api_key, api_base=api_base, api_version=api_version)))
         elif api_type == "open_ai":
             return cls(OpenAITool(OpenAIMethod(api_key=api_key, api_base=api_base)))
         else:
@@ -331,7 +334,7 @@ class OneAPITool():
         response = self.tool.simple_chat(args)
         return response
 
-    async def asimple_chat(self, prompt: str|list|dict, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
+    async def asimple_chat(self, prompt: str|list|dict, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=False, **kwargs):
         if isinstance(self.tool, OpenAITool):
             msgs = [] if not system else [dict(role="system", content=system)]
             if isinstance(prompt, str):

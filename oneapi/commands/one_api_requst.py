@@ -45,15 +45,15 @@ def main():
                         required=False)
     args = parser.parse_args()
     tool = OneAPITool.from_config_file(args.config_file)
-    print(
-        f"\n{'-'*20} prompt detail 🚀  {'-'*20}\n\n{args.prompt}\n\n{'-'*20} prompt end {'-'*20}"
-    )
     response = tool.simple_chat(
         prompt=args.prompt,
         system=args.system,
         model=args.model,
         temperature=args.temperature,
         max_new_tokens=args.max_new_tokens,
+    )
+    print(
+        f"\n{'-'*20} prompt detail 🚀  {'-'*20}\n\n{args.prompt}\n\n{'-'*20} prompt end {'-'*20}"
     )
     print(
         f"{'-'*20} {args.model} response ⭐️ {'-'*20}\n\n{response}\n\n{'-'*20} response end {'-'*20}\n\n"

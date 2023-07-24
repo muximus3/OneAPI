@@ -79,6 +79,20 @@ print(len(embeddings)))
 print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 ```
 **Note: Currently, `get_embeddings` only support OpenAI or Microsoft Azure API.**
+### Batch request with asyncio
+```python
+from oneapi.one_api import batch_chat
+
+claude_config = 'anthropic_config.json'
+openai_config = 'openapi_config.json'
+azure_config = 'openapi_azure_config.json'
+# The coccurent number of requests would be 3, which is the same as the length of the configs list.
+configs = [claude_config, openai_config, azure_config]
+prompts = ['How\'s the weather today?', 'How\'s the weather today?', 'How\'s the weather today?']
+res = asyncio.run(batch_chat(configs, prompts, stream=False))
+print(res)
+
+```
 #### Simple function calling example:
 
 ```python
@@ -213,7 +227,7 @@ The maximum number of tokens to generate in the chat completion.
 The total length of input tokens and generated tokens is limited by the model's context length.
 
 ## ToDo
-- [ ] Batch requests.
+- [x] Batch requests.
 - [x] OpenAI function_call.
 - [x] Token number counting.
 - [x] Async requests.

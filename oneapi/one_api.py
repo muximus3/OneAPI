@@ -10,7 +10,11 @@ import os
 from typing import Callable, Optional, Sequence, List
 import tiktoken
 import logging
+import asyncio
+import aiohttp
 from openai.openai_object import OpenAIObject
+import time
+from tqdm import tqdm
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
 from oneapi.utils import generate_function_description
 logger = logging.getLogger(__name__)
@@ -252,7 +256,7 @@ class ClaudeAITool(AbstractAPITool):
                     return data["completion"]
         else:
             resp = await self.client.acompletion(**args.dict())
-            return resp
+            return resp["completion"]
         
     def simple_chat(self, args: ClaudeDecodingArguments):
         if args.stream:
@@ -262,7 +266,7 @@ class ClaudeAITool(AbstractAPITool):
                     return data["completion"]
         else:
             resp = self.client.completion(**args.dict())
-            return resp
+            return resp["completion"]
 
             
             
@@ -327,7 +331,7 @@ class OneAPITool():
                     function_call = None
                 args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call=function_call, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
         elif isinstance(self.tool, ClaudeAITool):
-            args = ClaudeDecodingArguments(prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}", model=model if model else "claude-v1.3-100k", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
+            args = ClaudeDecodingArguments(prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}", model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
         else:
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
 
@@ -417,10 +421,6 @@ class OneAPITool():
         else:
             raise AssertionError(f"Function chat currently only support api type: {type(self.tool)}")
 
-        
-
-
-
     def get_embeddings(self, texts: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
         if isinstance(self.tool, OpenAITool):
             return self.tool.get_embeddings(texts, engine)  
@@ -440,3 +440,36 @@ class OneAPITool():
             return sum([anthropic.count_tokens(text) for text in texts])
         else:
             raise AssertionError(f"Not supported api type for token counting: {type(self.tool)}")
+
+
+async def bound_fetch(sem, pbar, tool: OneAPITool, prompt: str, model: str, **kwargs):
+    async with sem:
+        try:
+            res = await tool.asimple_chat(prompt=prompt, model=model, **kwargs)
+            pbar.update(1)
+            return res
+        except Exception as e:
+            logger.error(f"Error when calling {model} api: {e}")
+            return None
+
+async def batch_chat(api_config_files, texts, engines=None, request_interval=1, **kwargs):
+    process_num = len(api_config_files)
+    engines = engines if engines is not None else [''] * process_num
+    if engines is not None and len(engines) == 1:
+        engines = engines * process_num
+    if engines is not None and len(engines) > 1:
+        assert len(engines) == process_num, f'Number of engines must be equal to number of api config files when specific multiple engines, but got {len(engines)} engines and {process_num} api config files.'
+
+    sem = asyncio.Semaphore(process_num)
+    pbar = tqdm(total=len(texts))
+    tools = [OneAPITool.from_config_file(config_file) for config_file in api_config_files]
+    tasks = [asyncio.ensure_future(bound_fetch(sem, pbar, tools[i%process_num], prompt=prompt, model=engines[i%process_num], **kwargs))for i, prompt in enumerate(texts)]
+    task_batches = [tasks[i:i+process_num] for i in range(0, len(tasks), process_num)]
+    results = []
+    async with aiohttp.ClientSession() as session:
+        openai.aiosession.set(session)
+        for batch in task_batches:
+            batch_result = await asyncio.gather(*batch)
+            results.extend(batch_result)
+            time.sleep(request_interval)
+    return results

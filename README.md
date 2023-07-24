@@ -82,6 +82,7 @@ print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 ### Batch request with asyncio
 ```python
 from oneapi.one_api import batch_chat
+import asyncio
 
 claude_config = 'anthropic_config.json'
 openai_config = 'openapi_config.json'

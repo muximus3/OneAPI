@@ -271,7 +271,9 @@ class ClaudeAITool(AbstractAPITool):
             resp = self.client.completions.create(**args.dict())
             return resp.completion
 
-            
+    def count_tokens(self, texts: List[str]) -> int:
+        return sum([self.client.count_tokens(text) for text in texts])
+        
             
 
 class OneAPITool():
@@ -437,10 +439,11 @@ class OneAPITool():
             raise AssertionError(f"Not supported api type for embeddings: {type(self.tool)}")
     
     def count_tokens(self, texts: List[str], encoding_name: str = 'cl100k_base') -> int:
+        assert isinstance(texts, list), f"Input texts must be a list of strings. Got {type(texts)} instead."
         if isinstance(self.tool, OpenAITool):
             return self.tool.count_tokens(texts, encoding_name)
         elif isinstance(self.tool, ClaudeAITool):
-            return sum([anthropic.count_tokens(text) for text in texts])
+            return self.tool.count_tokens(texts)
         else:
             raise AssertionError(f"Not supported api type for token counting: {type(self.tool)}")
 

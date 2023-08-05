@@ -19,7 +19,7 @@ sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/
 from oneapi.utils import generate_function_description
 logger = logging.getLogger(__name__)
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARN,
     format="%(asctime)s %(filename)s:%(lineno)d %(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     filemode="a"

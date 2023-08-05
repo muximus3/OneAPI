@@ -246,27 +246,30 @@ class ClaudeAITool(AbstractAPITool):
     """
     def __init__(self,method : AbstrctMethod) -> None:
         self.method = method
-        self.client = anthropic.Client(method.api_key)
+        self.client = anthropic.Client(api_key=method.api_key)
+        self.aclient = anthropic.AsyncClient(api_key=method.api_key)
     
     async def asimple_chat(self, args: ClaudeDecodingArguments):
         if args.stream:
-            resp = await self.client.acompletion_stream(**args.dict())
-            async for data in resp:
-                if data["stop_reason"] == "stop_sequence" or data["stop_reason"] == "max_tokens":
-                    return data["completion"]
+            stream = await self.aclient.completions.create(**args.dict())
+            text = ""
+            async for data in stream:
+                text += data.completion
+            return text
         else:
-            resp = await self.client.acompletion(**args.dict())
-            return resp["completion"]
-        
+            resp = await self.aclient.completions.create(**args.dict())
+            return resp.completion
+                
     def simple_chat(self, args: ClaudeDecodingArguments):
         if args.stream:
-            resp = self.client.completion_stream(**args.dict())
+            resp = self.client.completions.create(**args.dict())
+            text = ""
             for  data in resp:
-                if data["stop_reason"] == "stop_sequence" or data["stop_reason"] == "max_tokens":
-                    return data["completion"]
+                text += data.completion
+            return text
         else:
-            resp = self.client.completion(**args.dict())
-            return resp["completion"]
+            resp = self.client.completions.create(**args.dict())
+            return resp.completion
 
             
             

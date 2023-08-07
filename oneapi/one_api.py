@@ -330,11 +330,11 @@ class OneAPITool():
     @staticmethod
     def _preprocess_claude_prompt(prompt: str|list[str], system: str = "") -> str:
         if isinstance(prompt, str):
-            return f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}" if not system else f"{anthropic.HUMAN_PROMPT}  {system}\n\n{prompt}{anthropic.AI_PROMPT}"
+            return f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}" if not system else f"{anthropic.HUMAN_PROMPT} {system}\n\n{prompt}{anthropic.AI_PROMPT}"
         elif isinstance(prompt, list) and isinstance(prompt[0], str):
             msg_list = [f"{anthropic.HUMAN_PROMPT} {p}" if i%2 == 0 else f"{anthropic.AI_PROMPT} {p}" for i, p in enumerate(prompt)]
             if system:
-                msg_list[0] = f"{anthropic.HUMAN_PROMPT}  {system}\n\n{prompt[0]}"
+                msg_list[0] = f"{anthropic.HUMAN_PROMPT} {system}\n\n{prompt[0]}"
             if len(msg_list) % 2 == 0:
                 msg_list.append(anthropic.HUMAN_PROMPT)
             else:

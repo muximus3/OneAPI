@@ -314,17 +314,37 @@ class OneAPITool():
         with open(file_path, "r") as f:
             return json.load(f)
 
-    def simple_chat(self, prompt: str|list|dict, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
-        if isinstance(self.tool, OpenAITool):
-            msgs = [] if not system else [dict(role="system", content=system)]
-            if isinstance(prompt, str):
-                msgs.append(dict(role="user", content=prompt))
-            elif isinstance(prompt, list):
-                msgs.extend(prompt)
-            elif isinstance(prompt, dict):
-                msgs.append(prompt)
+    @staticmethod 
+    def _preprocess_openai_prompt(prompt: str|list[str]|list[dict], system: str = "") -> List[dict]:
+        msgs = [] if not system else [dict(role="system", content=system)]
+        if isinstance(prompt, str):
+            msgs.append(dict(role="user", content=prompt))
+        elif isinstance(prompt, list) and isinstance(prompt[0], str):
+            msgs.extend([dict(role="user", content=p) if i%2 == 0 else dict(role='assistant', content=p) for i, p in enumerate(prompt)])
+        # for function calls
+        elif isinstance(prompt, list) and isinstance(prompt[0], dict):
+            msgs.extend(prompt)
+        else:
+            raise AssertionError(f"Prompt must be a string, list of strings. Got {type(prompt)} instead.")
+        return msgs
+    @staticmethod
+    def _preprocess_claude_prompt(prompt: str|list[str], system: str = "") -> str:
+        if isinstance(prompt, str):
+            return f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}" if not system else f"{anthropic.HUMAN_PROMPT}  {system}\n\n{prompt}{anthropic.AI_PROMPT}"
+        elif isinstance(prompt, list) and isinstance(prompt[0], str):
+            msg_list = [f"{anthropic.HUMAN_PROMPT} {p}" if i%2 == 0 else f"{anthropic.AI_PROMPT} {p}" for i, p in enumerate(prompt)]
+            if system:
+                msg_list[0] = f"{anthropic.HUMAN_PROMPT}  {system}\n\n{prompt[0]}"
+            if len(msg_list) % 2 == 0:
+                msg_list.append(anthropic.HUMAN_PROMPT)
             else:
-                raise AssertionError(f"Prompt must be a string, list of strings, or ChatGPTMessage. Got {type(prompt)} instead.")
+                msg_list.append(anthropic.AI_PROMPT)
+            return "".join(msg_list)
+        else:
+            raise AssertionError(f"Prompt must be a string, list of strings. Got {type(prompt)} instead.")
+    def simple_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
+        if isinstance(self.tool, OpenAITool):
+            msgs = self._preprocess_openai_prompt(prompt, system)
             if isinstance(self.tool.method, AzureMethod):
                 args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
             elif isinstance(self.tool.method, OpenAIMethod):
@@ -336,24 +356,17 @@ class OneAPITool():
                     function_call = None
                 args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call=function_call, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
         elif isinstance(self.tool, ClaudeAITool):
-            args = ClaudeDecodingArguments(prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}", model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
+            prompt = self._preprocess_claude_prompt(prompt, system) 
+            args = ClaudeDecodingArguments(prompt=prompt, model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
         else:
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
 
         response = self.tool.simple_chat(args)
         return response
 
-    async def asimple_chat(self, prompt: str|list|dict, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=False, **kwargs):
+    async def asimple_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=False, **kwargs):
         if isinstance(self.tool, OpenAITool):
-            msgs = [] if not system else [dict(role="system", content=system)]
-            if isinstance(prompt, str):
-                msgs.append(dict(role="user", content=prompt))
-            elif isinstance(prompt, list):
-                msgs.extend(prompt)
-            elif isinstance(prompt, dict):
-                msgs.append(prompt)
-            else:
-                raise AssertionError(f"Prompt must be a string, list of strings, or ChatGPTMessage. Got {type(prompt)} instead.")
+            msgs = self._preprocess_openai_prompt(prompt, system)
             if isinstance(self.tool.method, AzureMethod):
                 args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
             elif isinstance(self.tool.method, OpenAIMethod):
@@ -365,14 +378,15 @@ class OneAPITool():
                     function_call = None
                 args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call=function_call, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
         elif isinstance(self.tool, ClaudeAITool):
-            args = ClaudeDecodingArguments(prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}", model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
+            prompt = self._preprocess_claude_prompt(prompt, system) 
+            args = ClaudeDecodingArguments(prompt=prompt, model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
         else:
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
 
         response = await self.tool.asimple_chat(args)
         return response
 
-    def function_chat(self, prompt: str|list|dict, system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
+    def function_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
         """A full chain of function calling.
         Step1: Call the model with functions and user prompt.
         Step2: Use the model response to call your API.
@@ -393,15 +407,7 @@ class OneAPITool():
         """
         assert len(functions) > 0, "No functions found."
         if isinstance(self.tool, OpenAITool) and isinstance(self.tool.method, OpenAIMethod):
-            msgs = [] if not system else [dict(role="system", content=system)]
-            if isinstance(prompt, str):
-                msgs.append(dict(role="user", content=prompt))
-            elif isinstance(prompt, list):
-                msgs.extend(prompt)
-            elif isinstance(prompt, dict):
-                msgs.append(prompt)
-            else:
-                raise AssertionError(f"Prompt must be a string, list of strings, or ChatGPTMessage. Got {type(prompt)} instead.")
+            msgs = self._preprocess_openai_prompt(prompt, system)
             function_response = self.simple_chat(prompt, system, functions, function_call, model, temperature, max_new_tokens, stream, **kwargs)
             if not isinstance(function_response, dict) or not function_response.get("function_call"):
                 raise AssertionError(f"Function call not found in response: {function_response}")

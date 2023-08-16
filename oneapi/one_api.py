@@ -33,7 +33,6 @@ class AbstrctMethod(BaseModel):
     api_version: str
     method_list_models :str 
     method_model_info :str
-    method_chat :str
     method_commpletions :str
 
 class ClaudeMethod(AbstrctMethod):
@@ -43,7 +42,6 @@ class ClaudeMethod(AbstrctMethod):
     api_version: str = None
     method_list_models = ""
     method_model_info = ""
-    method_chat = "/v1/complete"
     method_commpletions = ""
 
 class AzureMethod(AbstrctMethod):
@@ -51,8 +49,6 @@ class AzureMethod(AbstrctMethod):
     api_base: str # Your Azure OpenAI resource's endpoint value.
     api_type: str = "azure"
     api_version = "2023-07-01-preview" # Official API version, usually there is no need to modify this field.
-    deployment_name = "gpt-35-turbo" # The deployment name you chose when you deployed the ChatGPT or GPT-4 model, used for raw http requests
-    method_chat = f"/openai/deployments/{deployment_name}/chat/completions?api-version={api_version}" # used for raw http requests
     method_list_models :str = "" 
     method_model_info :str = ""
     method_commpletions :str = ""
@@ -150,14 +146,16 @@ class OpenAITool(AbstractAPITool):
         completion = openai.ChatCompletion.create(**data)
         if data.get("stream", False):
             # create variables to collect the stream of chunks
-            collected_chunks = []
             collected_messages = []
             # iterate through the stream of events
             for chunk in completion:
-                collected_chunks.append(chunk)  # save the event response
+                if not chunk['id'] or len(chunk["choices"]) == 0: 
+                    continue
                 chunk_choice = chunk["choices"][0]
                 chunk_message = chunk_choice["delta"]  # extract the message
                 finish_reason = chunk_choice["finish_reason"]
+                if finish_reason == "stop" or finish_reason == "length":
+                    break
                 collected_messages.append(chunk_message)  # save the message
             full_reply_content = "".join([m.get("content", "") for m in collected_messages])
             return full_reply_content
@@ -181,14 +179,16 @@ class OpenAITool(AbstractAPITool):
         completion = await openai.ChatCompletion.acreate(**data)
         if data.get("stream", False):
             # create variables to collect the stream of chunks
-            collected_chunks = []
             collected_messages = []
             # iterate through the stream of events
             async for chunk in completion:
-                collected_chunks.append(chunk)  # save the event response
+                if not chunk['id'] or len(chunk["choices"]) == 0: 
+                    continue
                 chunk_choice = chunk["choices"][0]
                 chunk_message = chunk_choice["delta"]  # extract the message
                 finish_reason = chunk_choice["finish_reason"]
+                if finish_reason == "stop" or finish_reason == "length":
+                    break
                 collected_messages.append(chunk_message)  # save the message
             full_reply_content = "".join([m.get("content", "") for m in collected_messages])
             return full_reply_content

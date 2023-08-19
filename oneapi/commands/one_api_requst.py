@@ -84,6 +84,7 @@ def main():
         with open(cace_file_dir, "a+" if cace_file_dir.is_file() else "w+") as f:
             format_data = {'id': str(time.time()), 'model': model, 'conversations': [{'from': 'user', 'value': args.prompt}, {'from': 'assistant', 'value': response.strip()}]}
             f.write(json.dumps(format_data, ensure_ascii=False) + "\n")
+        print(f'Save model response to file success! DIR: {cace_file_dir}')
 
 
 if __name__ == "__main__":

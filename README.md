@@ -64,20 +64,40 @@ If you are using Azure APIs, you can find relevant information on the Azure reso
 `api_version`: This field is optional. Azure provides several versions of APIs, such as "2023-03-15-preview". However, the OpenAI SDK always has a default value set for this field. Therefore, you should only specify a specific value if you want to use that particular version of APIs.
 
 #### Chat example:
+#### There are three acceptable types of inputs for function `simple_chat()`: 
+- list of dicts
+- string
+- list of string
 ```python
 from oneapi import OneAPITool
 import asyncio
 # Two ways to initialize the OneAPITool object  
 # tool = OneAPITool.from_config(api_key, api_base, api_type)
 tool = OneAPITool.from_config_file("your_config_file.json")
-# Say hello to ChatGPT/Claude/GPT-4
-res = tool.simple_chat("Hello AI!")
+
+# There are three acceptable types of inputs.
+conversations_sharegpt_style = [{"from": "human", "value": "hello"}, {"from": "assistant", "value": "Hello, how can i assistant you today?"}, {"from": "human", "value": "I want to know the weather of tomorrow"}]
+conversations_openai_style = [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "Hello, how can i assistant you today?"}, {"role": "user", "content": "I want to know the weather of tomorrow"}]
+conversation_with_system_msg = [{"role": "system", "content": "Now you are a weather forecast assistant."},{"role": "user", "content": "hello"}, {"role": "assistant", "content": "Hello, how can i assistant you today?"}, {"role": "user", "content": "I want to know the weather of tomorrow"}]
+string_message = "Hello AI!"
+list_of_string_messages = ["Hello AI!", "Hello, how can i assistant you today?", "I want to know the weather of tomorrow"]
+
+for msg in [conversations_sharegpt_style, conversations_openai_style, conversation_with_system_msg, string_message, list_of_string_messages]:
+    res = tool.simple_chat(msg)
+    print(res)
+
+# Pass system message independently
+res = tool.simple_chat("I want to know the weather of tomorrow", system="Now you are a weather forecast assistant.")
 print(res)
-# Async chat to ChatGPT/Claude/GPT-4 with `stream=False`
-res = asyncio.run(tool.asimple_chat('How\'s the weather today?', model='gpt-4', stream=False))
+
+# Async chat 
+res = asyncio.run(tool.asimple_chat("How\'s the weather today?", model="gpt-4", stream=False))
+print(res)
+
 # Get embeddings of some sentences for further usage, e.g., clustering
 embeddings = tool.get_embeddings(["Hello AI!", "Hello world!"])
-print(len(embeddings)))
+print(len(embeddings))
+
 # Count the number of tokens
 print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 ```
@@ -87,12 +107,12 @@ print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 from oneapi.one_api import batch_chat
 import asyncio
 
-claude_config = 'anthropic_config.json'
-openai_config = 'openapi_config.json'
-azure_config = 'openapi_azure_config.json'
+claude_config = "anthropic_config.json"
+openai_config = "openapi_config.json"
+azure_config = "openapi_azure_config.json"
 # The coccurent number of requests would be 3, which is the same as the length of the configs list.
 configs = [claude_config, openai_config, azure_config]
-prompts = ['How\'s the weather today?', 'How\'s the weather today?', 'How\'s the weather today?']
+prompts = ["How\'s the weather today?", "How\'s the weather today?", "How\'s the weather today?"]
 res = asyncio.run(batch_chat(configs, prompts, stream=False))
 print(res)
 
@@ -224,11 +244,14 @@ The question that would be predicted by LLMs, e.g., A math question would be lik
 
 `--model` string ${\color{grey}\text{Optional}}$  Defaults to GPT-3.5-turbo or Claude-v1.3 depends on `api_type`<br> Which model to use, e.g., gpt-4.
 
-`--temperature` number ${\color{grey}\text{Optional}}$ Defaults to 1 <br>What sampling temperature to use.  Higher values like 0.9 will make the output more random, while lower values like 0.1 will make it more focused and deterministic. 
+`--temperature` int ${\color{grey}\text{Optional}}$ Defaults to 1 <br>What sampling temperature to use.  Higher values like 0.9 will make the output more random, while lower values like 0.1 will make it more focused and deterministic. 
 
-`--max_new_tokens` integer ${\color{grey}\text{Optional}}$ Defaults to 2048 <br>
+`--max_new_tokens` int ${\color{grey}\text{Optional}}$ Defaults to 2048 <br>
 The maximum number of tokens to generate in the chat completion.
 The total length of input tokens and generated tokens is limited by the model's context length.
+
+`--save_to_file` bool ${\color{grey}\text{Optional}}$ Defaults to True <br>
+Save the prompt and response to local file at directory "~/.cache/history_cache_{date_of_month}" with the format style of shareGPT.
 
 ## ToDo
 - [x] Batch requests.

@@ -1,7 +1,10 @@
 import sys
 import os
 import argparse
-
+from pathlib import Path
+import datetime
+import time
+import json
 sys.path.append(
     os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/../../"))
 from oneapi import OneAPITool
@@ -31,6 +34,12 @@ def main():
                         default="",
                         help="evaluate model name, e.g., gpt-35-turbo, gpt-4",
                         required=False)
+    parser.add_argument("-stf",
+                        "--save_to_file",
+                        type=bool,
+                        default=True,
+                        help="save to file or not,  if true, save to ~/.cache/history_cache_month.jsonl",
+                        required=False)
     parser.add_argument("-te",
                         "--temperature",
                         type=float,
@@ -58,6 +67,23 @@ def main():
     print(
         f"{'-'*20} {args.model} response ⭐️ {'-'*20}\n\n{response}\n\n{'-'*20} response end {'-'*20}\n\n"
     )
+    if args.save_to_file:
+        if not args.model:
+            api_type = OneAPITool.load_json(args.config_file)['api_type']
+            if api_type == "open_ai" or "azure":
+                model = "gpt-35-turbo" 
+            else:
+                model = "claude-2"
+        else:
+            model = args.model 
+        month = datetime.datetime.now().strftime("%Y%m")
+        cace_dir = Path.home()/".cache"
+        if not cace_dir.exists():
+            cace_dir.mkdir(parents=True)
+        cace_file_dir = cace_dir/f"history_cache_{month}.jsonl"
+        with open(cace_file_dir, "a+" if cace_file_dir.is_file() else "w+") as f:
+            format_data = {'id': str(time.time()), 'model': model, 'conversations': [{'from': 'user', 'value': args.prompt}, {'from': 'assistant', 'value': response.strip()}]}
+            f.write(json.dumps(format_data, ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":

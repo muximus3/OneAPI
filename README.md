@@ -41,7 +41,8 @@ Azure OpenAI config:
 {
     "api_key": "YOUR_API_KEY",
     "api_base": "Replace with your Azure OpenAI resource's endpoint value.",
-    "api_type": "azure"
+    "api_type": "azure",
+    "api_version": "2023-03-15-preview" 
 }
 ```
 Anthropic config:
@@ -59,6 +60,8 @@ Anthropic config:
 If you are using Azure APIs, you can find relevant information on the Azure resource dashboard. The API format typically follows this pattern: `https://{your_organization}.openai.azure.com/`.
 
 `api_type`: Currently supported values are "open_ai", "azure", or "claude".
+
+`api_version`: This field is optional. Azure provides several versions of APIs, such as "2023-03-15-preview". However, the OpenAI SDK always has a default value set for this field. Therefore, you should only specify a specific value if you want to use that particular version of APIs.
 
 #### Chat example:
 ```python

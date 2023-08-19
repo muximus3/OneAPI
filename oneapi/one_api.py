@@ -264,7 +264,7 @@ class ClaudeAITool(AbstractAPITool):
         if args.stream:
             resp = self.client.completions.create(**args.dict())
             text = ""
-            for  data in resp:
+            for data in resp:
                 text += data.completion
             return text
         else:
@@ -277,6 +277,8 @@ class ClaudeAITool(AbstractAPITool):
             
 
 class OneAPITool():
+    HUMAN = ['human', 'user']
+
     def __init__(self, tool: AbstractAPITool) -> None:
         self.tool = tool
 
@@ -315,15 +317,49 @@ class OneAPITool():
             return json.load(f)
 
     @staticmethod 
+    def from_human(speaker: str):
+        return speaker.lower() in OneAPITool.HUMAN
+   
+    @staticmethod
+    def get_role(episode):
+        return episode.get('role', episode.get('from', ''))
+
+    @staticmethod
+    def format_role(role):
+        if role.lower() == 'human':
+            return 'user'
+        else:
+            if role.lower().startswith(('gpt', 'claude', 'bing', 'bard')):
+                return 'assistant'
+            else:
+                return role
+
+    @staticmethod
+    def get_content(episode):
+        return episode.get('content', episode.get('value', ''))
+
+    @staticmethod 
     def _preprocess_openai_prompt(prompt: str|list[str]|list[dict], system: str = "") -> List[dict]:
         msgs = [] if not system else [dict(role="system", content=system)]
         if isinstance(prompt, str):
             msgs.append(dict(role="user", content=prompt))
         elif isinstance(prompt, list) and isinstance(prompt[0], str):
             msgs.extend([dict(role="user", content=p) if i%2 == 0 else dict(role='assistant', content=p) for i, p in enumerate(prompt)])
-        # for function calls
         elif isinstance(prompt, list) and isinstance(prompt[0], dict):
-            msgs.extend(prompt)
+            # Format prompt to be consistent with OpenAI's API
+            new_prompt = []
+            for item in prompt:
+                new_item = {}
+                for k, v in item.items():
+                    if k == 'from' or k == 'role':
+                        new_item['role'] = OneAPITool.format_role(v)
+                    elif k == 'value':
+                        new_item['content'] = v
+                    # function call may have different names
+                    else:
+                        new_item[k] = v
+                new_prompt.append(new_item)
+            msgs.extend(new_prompt)
         else:
             raise AssertionError(f"Prompt must be a string, list of strings. Got {type(prompt)} instead.")
         return msgs
@@ -331,15 +367,37 @@ class OneAPITool():
     def _preprocess_claude_prompt(prompt: str|list[str], system: str = "") -> str:
         if isinstance(prompt, str):
             return f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}" if not system else f"{anthropic.HUMAN_PROMPT} {system}\n\n{prompt}{anthropic.AI_PROMPT}"
+        # If it is a list of strings, we assume that the even positions are always human questions, and thus correspond one-to-one with the answers.
         elif isinstance(prompt, list) and isinstance(prompt[0], str):
             msg_list = [f"{anthropic.HUMAN_PROMPT} {p}" if i%2 == 0 else f"{anthropic.AI_PROMPT} {p}" for i, p in enumerate(prompt)]
             if system:
                 msg_list[0] = f"{anthropic.HUMAN_PROMPT} {system}\n\n{prompt[0]}"
             if len(msg_list) % 2 == 0:
-                msg_list.append(anthropic.HUMAN_PROMPT)
+                raise AssertionError('prompt must end with "\\n\\nAssistant:" turn')            
             else:
                 msg_list.append(anthropic.AI_PROMPT)
             return "".join(msg_list)
+        # Adapt to OpenAI/shareGPT style.
+        elif isinstance(prompt, list) and isinstance(prompt[0], dict):
+            plain_msg = ''
+            if OneAPITool.get_role(prompt[0]) in  ['system', 'system_prompt'] and len(prompt) > 1:
+                system = OneAPITool.get_content(prompt[0])
+                content = OneAPITool.get_content(prompt[1])
+                plain_msg += f"{anthropic.HUMAN_PROMPT} {system}\n\n{content}"
+                prompt = prompt[2:]
+                if len(prompt) == 0:
+                    return plain_msg + anthropic.AI_PROMPT
+            for episode in prompt:
+                speaker = OneAPITool.get_role(episode)
+                content = OneAPITool.get_content(episode)
+                if not speaker or not content: 
+                    raise AssertionError(f'Empty speaker or content at episode:{episode}')
+                plain_msg += f"{anthropic.HUMAN_PROMPT} {content}" if OneAPITool.from_human(speaker) else f"{anthropic.AI_PROMPT} {content}"
+            if OneAPITool.from_human(OneAPITool.get_role(prompt[-1])):
+                plain_msg += anthropic.AI_PROMPT
+            else:
+                raise AssertionError('prompt must end with "\\n\\nAssistant:" turn')
+            return plain_msg
         else:
             raise AssertionError(f"Prompt must be a string, list of strings. Got {type(prompt)} instead.")
     def simple_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):

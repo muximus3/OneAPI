@@ -10,6 +10,16 @@ sys.path.append(
 from oneapi import OneAPITool
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def main():
     parser = argparse.ArgumentParser(description="one-api [<args>]")
     parser.add_argument("-c",
@@ -36,7 +46,7 @@ def main():
                         required=False)
     parser.add_argument("-stf",
                         "--save_to_file",
-                        type=bool,
+                        type=str2bool,
                         default=True,
                         help="save to file or not,  if true, save to ~/.cache/history_cache_month.jsonl",
                         required=False)

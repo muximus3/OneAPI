@@ -80,7 +80,7 @@ def main():
     if args.save_to_file:
         if not args.model:
             api_type = OneAPITool.load_json(args.config_file)['api_type']
-            if api_type == "open_ai" or "azure":
+            if api_type in ["open_ai", "azure"]:
                 model = "gpt-35-turbo" 
             else:
                 model = "claude-2"

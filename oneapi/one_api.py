@@ -400,7 +400,7 @@ class OneAPITool():
             return plain_msg
         else:
             raise AssertionError(f"Prompt must be a string, list of strings. Got {type(prompt)} instead.")
-    def simple_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
+    def simple_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=False, **kwargs):
         if isinstance(self.tool, OpenAITool):
             msgs = self._preprocess_openai_prompt(prompt, system)
             if isinstance(self.tool.method, AzureMethod):

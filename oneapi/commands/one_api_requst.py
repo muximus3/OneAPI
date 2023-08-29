@@ -71,8 +71,9 @@ def main():
         temperature=args.temperature,
         max_new_tokens=args.max_new_tokens,
     )
+    prompt = f'{args.system}\n\n{args.prompt}' if args.system else args.prompt
     print(
-        f"\n{'-'*20} prompt detail 🚀  {'-'*20}\n\n{args.prompt}\n\n{'-'*20} prompt end {'-'*20}"
+        f"\n{'-'*20} prompt detail 🚀  {'-'*20}\n\n{prompt}\n\n{'-'*20} prompt end {'-'*20}"
     )
     print(
         f"{'-'*20} {args.model} response ⭐️ {'-'*20}\n\n{response}\n\n{'-'*20} response end {'-'*20}\n\n"
@@ -92,7 +93,7 @@ def main():
             cace_dir.mkdir(parents=True)
         cace_file_dir = cace_dir/f"history_cache_{month}.jsonl"
         with open(cace_file_dir, "a+" if cace_file_dir.is_file() else "w+") as f:
-            format_data = {'id': str(time.time()), 'model': model, 'conversations': [{'from': 'user', 'value': args.prompt}, {'from': 'assistant', 'value': response.strip()}]}
+            format_data = {'id': str(time.time()), 'system_prompt': args.system, 'model': model, 'conversations': [{'from': 'user', 'value': args.prompt}, {'from': 'assistant', 'value': response.strip()}]}
             f.write(json.dumps(format_data, ensure_ascii=False) + "\n")
         print(f'Save model response to file success! DIR: {cace_file_dir}')
 

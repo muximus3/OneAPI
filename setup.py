@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="one-api-tool",
-    version="0.6.2",
+    version="1.0.0",
     packages=find_packages(),
     install_requires=[
         # Add your library's dependencies here
@@ -11,6 +11,8 @@ setup(
         "anthropic>=0.3",
         "requests",
         "httpx",
+        "rich",
+        "inquirer",
         "aiohttp",
         "tiktoken",
         "tqdm",

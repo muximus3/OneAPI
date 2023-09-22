@@ -4,7 +4,26 @@ import sys
 import inspect
 from docstring_parser import parse
 import enum
+import re
 sys.path.append(os.path.normpath(f'{os.path.dirname(os.path.abspath(__file__))}/..'))
+
+def correct_zh_punctuation(text):
+    # 中文字符的Unicode范围
+    chinese_pattern = "[\u4e00-\u9fa5]"
+    
+    # 英文标点符号
+    english_punctuations = ",.!?;:"
+    
+    # 中文标点符号
+    chinese_punctuations = "，。！？；："
+    
+    # 找到所有中文字符后面跟着英文标点的位置
+    for m in re.finditer(chinese_pattern + "[" + english_punctuations + "]", text):
+        pos = m.start() + 1
+        # 将英文标点替换为对应的中文标点
+        text = text[:pos] + chinese_punctuations[english_punctuations.index(text[pos])] + text[pos+1:]
+    
+    return text
 
 def python_type_to_json_type(python_type):
     if python_type in [str, 'str']:

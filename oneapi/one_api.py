@@ -110,9 +110,12 @@ class ClaudeDecodingArguments(BaseModel):
 class AbstractAPITool(ABC):
 
     @abstractmethod
-    def simple_chat(args):
+    def chat(args):
         raise NotImplementedError
         
+    @abstractmethod
+    async def achat(args):
+        raise NotImplementedError
 
 class OpenAITool(AbstractAPITool):
 
@@ -129,7 +132,19 @@ class OpenAITool(AbstractAPITool):
         openai.api_type = self.method.api_type
         openai.api_version = self.method.api_version
 
-    def simple_chat(self, args: OpenAIDecodingArguments):
+    def chat_stream(self, resp):
+        for chunk in resp:
+            if not chunk['id'] or len(chunk["choices"]) == 0: 
+                continue
+            chunk_choice = chunk["choices"][0]
+            chunk_message = chunk_choice["delta"]  # extract the message
+            finish_reason = chunk_choice["finish_reason"]
+            if finish_reason == "stop" or finish_reason == "length":
+                break
+            # collected_messages.append(chunk_message)  # save the message
+            yield chunk_message.get("content", "")
+    
+    def chat(self, args: OpenAIDecodingArguments):
         """
         https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/chatgpt?pivots=programming-language-chat-completions
         https://platform.openai.com/docs/api-reference/chat
@@ -145,20 +160,7 @@ class OpenAITool(AbstractAPITool):
                 data.pop("function_call")
         completion = openai.ChatCompletion.create(**data)
         if data.get("stream", False):
-            # create variables to collect the stream of chunks
-            collected_messages = []
-            # iterate through the stream of events
-            for chunk in completion:
-                if not chunk['id'] or len(chunk["choices"]) == 0: 
-                    continue
-                chunk_choice = chunk["choices"][0]
-                chunk_message = chunk_choice["delta"]  # extract the message
-                finish_reason = chunk_choice["finish_reason"]
-                if finish_reason == "stop" or finish_reason == "length":
-                    break
-                collected_messages.append(chunk_message)  # save the message
-            full_reply_content = "".join([m.get("content", "") for m in collected_messages])
-            return full_reply_content
+            return self.chat_stream(completion)
         else:
             response_message = completion.choices[0].message
             if is_function_call:
@@ -166,7 +168,7 @@ class OpenAITool(AbstractAPITool):
                     return response_message
             return response_message.get("content", "")
 
-    async def asimple_chat(self, args: OpenAIDecodingArguments):
+    async def achat(self, args: OpenAIDecodingArguments):
         self.reset_environment()
         data = args.dict()
         is_function_call = data.get("functions", None) is not None
@@ -249,26 +251,31 @@ class ClaudeAITool(AbstractAPITool):
         self.client = anthropic.Client(api_key=method.api_key)
         self.aclient = anthropic.AsyncClient(api_key=method.api_key)
     
-    async def asimple_chat(self, args: ClaudeDecodingArguments):
+    
+    async def achat(self, args: ClaudeDecodingArguments):
+        resp = await self.aclient.completions.create(**args.dict())
         if args.stream:
-            stream = await self.aclient.completions.create(**args.dict())
-            text = ""
-            async for data in stream:
-                text += data.completion
-            return text
+            full_comp = ""
+            async for data in resp:
+                if data.stop_reason == 'stop_sequence':
+                    break
+                full_comp += data.completion
+
+            return full_comp
         else:
-            resp = await self.aclient.completions.create(**args.dict())
             return resp.completion
                 
-    def simple_chat(self, args: ClaudeDecodingArguments):
+    def chat_stream(self, resp):
+        for data in resp:
+            if data.stop_reason == 'stop_sequence':
+                break
+            yield data.completion
+
+    def chat(self, args: ClaudeDecodingArguments):
+        resp = self.client.completions.create(**args.dict())
         if args.stream:
-            resp = self.client.completions.create(**args.dict())
-            text = ""
-            for data in resp:
-                text += data.completion
-            return text
+            return self.chat_stream(resp)
         else:
-            resp = self.client.completions.create(**args.dict())
             return resp.completion
 
     def count_tokens(self, texts: List[str]) -> int:
@@ -400,7 +407,7 @@ class OneAPITool():
             return plain_msg
         else:
             raise AssertionError(f"Prompt must be a string, list of strings. Got {type(prompt)} instead.")
-    def simple_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=False, **kwargs):
+    def chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=False, **kwargs):
         if isinstance(self.tool, OpenAITool):
             msgs = self._preprocess_openai_prompt(prompt, system)
             if isinstance(self.tool.method, AzureMethod):
@@ -419,10 +426,10 @@ class OneAPITool():
         else:
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
 
-        response = self.tool.simple_chat(args)
+        response = self.tool.chat(args)
         return response
 
-    async def asimple_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=False, **kwargs):
+    async def achat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=False, **kwargs):
         if isinstance(self.tool, OpenAITool):
             msgs = self._preprocess_openai_prompt(prompt, system)
             if isinstance(self.tool.method, AzureMethod):
@@ -441,7 +448,7 @@ class OneAPITool():
         else:
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
 
-        response = await self.tool.asimple_chat(args)
+        response = await self.tool.achat(args)
         return response
 
     def function_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):

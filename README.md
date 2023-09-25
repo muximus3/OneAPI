@@ -10,11 +10,11 @@ Easily access multiple ChatGPT or similar APIs using Teaminal/Python
 
 **Step 3: Select the API type and set the key and other information following the guide.**
 
-![Alt text](image.png)
+![Alt text](/assets/image.png)
 
 **Step 4: Initiate the chat dialogue and edit the conversation:**
 
-![Alt text](image-1.png)
+![Alt text](/assets/image-1.png)
 - `:clear` to clear the conversation history
 - `:d_clear` to clear the conversation history and system prompt
 - `:undo` to remove the latest message

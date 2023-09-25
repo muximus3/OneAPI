@@ -12,6 +12,7 @@ import json
 import requests
 import pkg_resources
 import inquirer
+from inquirer.themes import GreenPassion
 from dotenv import load_dotenv, find_dotenv
 sys.path.append(
     os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/../../"))
@@ -130,7 +131,7 @@ def main():
     else:
         rprint(Markdown(f"\nWelcome to **One API**.\n"))
         questions = [inquirer.List('api_type', message="Please select the API type you want to use", choices=['open_ai', 'azure', 'claude'])]
-        answers = inquirer.prompt(questions)
+        answers = inquirer.prompt(questions, theme=GreenPassion())
         api_type = answers['api_type']
         if api_type == "open_ai":
             key_word = "OPENAI"
@@ -156,8 +157,8 @@ def main():
             if model.strip() == "":
                 model = default_model
         else: 
-            questions = [inquirer.Text("api_key", message=f"{key_word.title()} API key"),
-                inquirer.Text("api_base", message=f"{key_word.title()} API base URL." + (f" Enter to use the default {key_word.title()} URL." if api_type != 'azure' else "")),
+            questions = [inquirer.Text("api_key", message=f"{key_word.title()} API key", validate=lambda _ , c: len(c) > 10),
+                inquirer.Text("api_base", message=f"{key_word.title()} API base URL." + (f" Enter to use the default {key_word.title()} URL." if api_type != 'azure' else ""), validate=lambda _ , c: True if api_type != 'azure' else c.strip().startswith("https://") and "openai.azure.com" in c),
                 inquirer.Text("model", message=f"Model/Engine, Enter to use the default {key_word.title()} model: {default_model}"), 
                 inquirer.Confirm("set_to_envs", message=f"Save API setting to the local environment path? \"{local_env_path}\"", default=True)
                 ]

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="one-api-tool",
-    version="1.0.0",
+    version="1.1.3",
     packages=find_packages(),
     install_requires=[
         # Add your library's dependencies here
@@ -15,6 +15,7 @@ setup(
         "inquirer",
         "aiohttp",
         "tiktoken",
+        "python-dotenv",
         "tqdm",
         "tokenizers",
         "docstring_parser"

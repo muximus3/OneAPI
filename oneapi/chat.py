@@ -35,9 +35,6 @@ class MessageBlock:
     self.live.stop()
 
   def refresh(self, cursor=True):
-    # De-stylize any code blocks in markdown,
-    # to differentiate from our Code Blocks
-    # content = textify_markdown_code_blocks(self.content)
     content = self.content
     
     if cursor:
@@ -48,26 +45,6 @@ class MessageBlock:
     self.live.update(panel)
     self.live.refresh()
 
-
-def textify_markdown_code_blocks(text):
-  """
-  To distinguish CodeBlocks from markdown code, we simply turn all markdown code
-  (like '```python...') into text code blocks ('```text') which makes the code black and white.
-  """
-  replacement = "```text"
-  lines = text.split('\n')
-  inside_code_block = False
-
-  for i in range(len(lines)):
-    # If the line matches ``` followed by optional language specifier
-    if re.match(r'^```(\w*)$', lines[i].strip()):
-      inside_code_block = not inside_code_block
-
-      # If we just entered a code block, replace the marker
-      if inside_code_block:
-        lines[i] = replacement
-
-  return '\n'.join(lines)
 
 class ChatAgent:
     
@@ -95,9 +72,12 @@ class ChatAgent:
         if len(self.messages) == 0:
             return
         message = self.messages.pop()
-        print(Markdown(f"**Removed message:** `\"{message.get('content', message.get('value', ''))[:30]}...\"`"))
-        print(self.tool._preprocess_claude_prompt(self.messages))
-        print(Markdown(f"**Current messages:**"))
+        print(Markdown(f"**Removed message:** `\"{message.get('content', message.get('value', ''))[:30]}...\"`"), end="\n\n")
+        if len(self.messages) == 0:
+            return
+        print(Markdown(f"**Current message:** `\"{self.messages[-1].get('content', message.get('value', ''))[:30]}...\"`"), end="\n\n")
+        if self.messages[-1]['role'] == 'user':
+            print(Markdown(f"Press `Enter` to regenerate answer"), end="\n\n")
 
     def handle_clear(self):
         self.messages = []
@@ -109,7 +89,7 @@ class ChatAgent:
         print(Markdown(f"**Cleared messages and system prompt.**"))
 
     def handle_save_messages(self):
-        if len(self.messages) <= 1:
+        if len(self.messages) <= 1 or self.messages[-1]['role'] != 'assistant':
             return
         month = datetime.datetime.now().strftime("%Y%m")
         cace_dir = Path.home()/".cache"
@@ -157,7 +137,15 @@ class ChatAgent:
                 break
 
             if not user_input.strip():
+                if self.messages[-1]['role'] == 'user':
+                    try:
+                        self.respond()    
+                    except KeyboardInterrupt:
+                        pass
+                    finally:
+                        self.end_active_block()
                 continue
+                    
             try: 
                 readline.add_history(user_input)
             except:
@@ -200,6 +188,7 @@ class ChatAgent:
         for chunk in response:
             if self.active_block == None:
                 self.active_block = MessageBlock()
+            time.sleep(0.01)
             self.active_block.update_from_message(chunk)
             plain_response += chunk
         if self.model.startswith('claude'):

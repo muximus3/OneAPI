@@ -1,7 +1,23 @@
 # OneAPI
-Easily access multiple ChatGPT or similar APIs with just one line of code/command.
 
-Save a significant amount of ☕️ time by avoiding the need to read multiple API documents and test them individually.
+Easily access multiple ChatGPT or similar APIs using Teaminal/Python
+
+`Engage in multi-turn conversations with ChatGPT and automatically save them in a training-specific data format.`
+
+**Step 1: Installation (requires Python environment):** `pip install one-api-tool -i <https://pypi.org/simple>`
+
+**Step 2: Start the command:** `one-api`
+
+**Step 3: Select the API type and set the key and other information following the guide.**
+
+**Step 4: Initiate the chat dialogue and edit the conversation:**
+
+- `:clear` to clear the conversation history
+- `:d_clear` to clear the conversation history and system prompt
+- `:undo` to remove the latest message
+- `:save` to save the current session history (the program also saves automatically upon exit)
+
+
 
 The currently supported APIs include:
  - [x] OpenAI Official API.
@@ -64,7 +80,7 @@ If you are using Azure APIs, you can find relevant information on the Azure reso
 `api_version`: This field is optional. Azure provides several versions of APIs, such as "2023-03-15-preview". However, the OpenAI SDK always has a default value set for this field. Therefore, you should only specify a specific value if you want to use that particular version of APIs.
 
 #### Chat example:
-#### There are three acceptable types of inputs for function `simple_chat()`: 
+#### There are three acceptable types of inputs for function `chat()`: 
 - list of dicts
 - string
 - list of string
@@ -83,15 +99,15 @@ string_message = "Hello AI!"
 list_of_string_messages = ["Hello AI!", "Hello, how can i assistant you today?", "I want to know the weather of tomorrow"]
 
 for msg in [conversations_sharegpt_style, conversations_openai_style, conversation_with_system_msg, string_message, list_of_string_messages]:
-    res = tool.simple_chat(msg)
+    res = tool.chat(msg)
     print(res)
 
 # Pass system message independently
-res = tool.simple_chat("I want to know the weather of tomorrow", system="Now you are a weather forecast assistant.")
+res = tool.chat("I want to know the weather of tomorrow", system="Now you are a weather forecast assistant.")
 print(res)
 
 # Async chat 
-res = asyncio.run(tool.asimple_chat("How\'s the weather today?", model="gpt-4", stream=False))
+res = asyncio.run(tool.achat("How\'s the weather today?", model="gpt-4", stream=False))
 print(res)
 
 # Get embeddings of some sentences for further usage, e.g., clustering
@@ -169,7 +185,7 @@ def get_whether_of_city(city: str, date: str) -> dict:
 # tool = OneAPITool.from_config(api_key, api_base, api_type)
 tool = OneAPITool.from_config_file("your_config_file.json")
 msgs = [{"role": "user", "content": "What's the weather like in New York on July 10th?"}]
-function_response = tool.simple_chat(msgs, model="gpt-3.5-turbo-0613", functions=[get_whether_of_city])
+function_response = tool.chat(msgs, model="gpt-3.5-turbo-0613", functions=[get_whether_of_city])
 print(f"Function response:\n{function_response}")
 function_call = function_response["function_call"]
 arguments = json.loads(function_call["arguments"])
@@ -177,7 +193,7 @@ wether_info = get_whether_of_city(**arguments)
 print(f"Wether_info:\n{wether_info}")
 msgs.append(function_response)
 msgs.append({"role": "function", "name": function_call["name"], "content": json.dumps(wether_info)})
-second_res = api.simple_chat(msgs, model="gpt-3.5-turbo-0613")
+second_res = api.chat(msgs, model="gpt-3.5-turbo-0613")
 print(f"Second response:\n{second_res}")
 
 ```

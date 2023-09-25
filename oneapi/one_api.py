@@ -39,16 +39,16 @@ class ClaudeMethod(AbstrctMethod):
     api_key: str
     api_base: str = "https://api.anthropic.com",
     api_type: str = "claude"
-    api_version: str = None
-    method_list_models = ""
-    method_model_info = ""
-    method_commpletions = ""
+    api_version: str = ""
+    method_list_models : str = ""
+    method_model_info : str = ""
+    method_commpletions : str = ""
 
 class AzureMethod(AbstrctMethod):
     api_key: str
     api_base: str # Your Azure OpenAI resource's endpoint value.
     api_type: str = "azure"
-    api_version = "2023-07-01-preview" # Official API version, usually there is no need to modify this field.
+    api_version : str = "2023-07-01-preview" # Official API version, usually there is no need to modify this field.
     method_list_models :str = "" 
     method_model_info :str = ""
     method_commpletions :str = ""
@@ -58,10 +58,10 @@ class OpenAIMethod(AbstrctMethod):
     api_base: str = "https://api.openai.com/v1"
     api_type: str = "open_ai"
     api_version: str = None
-    method_list_models = "models"
-    method_model_info = "models"
-    method_chat = "/chat/completions"
-    method_commpletions = "completions"
+    method_list_models :str = "models"
+    method_model_info :str = "models"
+    method_chat : str = "/chat/completions"
+    method_commpletions : str = "completions"
 
 class OpenAIDecodingArguments(BaseModel):
     messages: List[dict] 

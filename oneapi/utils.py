@@ -5,7 +5,15 @@ import inspect
 from docstring_parser import parse
 import enum
 import re
+from pathlib import Path
+import fnmatch
+import json
 sys.path.append(os.path.normpath(f'{os.path.dirname(os.path.abspath(__file__))}/..'))
+
+def map_conversations_format(conversations):
+    if len(conversations) > 0 and 'from' and 'value' in conversations[0]:
+        conversations = [{'role': item['from'], 'content': item['value']} for item in conversations]
+    return conversations
 
 def correct_zh_punctuation(text):
     # 中文字符的Unicode范围
@@ -24,6 +32,27 @@ def correct_zh_punctuation(text):
         text = text[:pos] + chinese_punctuations[english_punctuations.index(text[pos])] + text[pos+1:]
     
     return text
+
+def find_files_unrecu(directory, pattern):
+    """ finds all files matching the pattern."""
+    if not Path(directory).is_dir():
+        raise AssertionError('NOT A VALID DIRECTORY!!')
+    files = []
+    for filename in fnmatch.filter(os.listdir(directory), pattern):
+        files.append(os.path.join(os.path.abspath(directory), filename))
+    return files
+
+def load_jsonl(data_path: str, obj_item: bool=True):
+    if obj_item: 
+        data = []
+        for i, l in enumerate(open(data_path, "r")):
+            try:
+                data.append(json.loads(l)) 
+            except json.decoder.JSONDecodeError as e:
+                print(f'load file:{data_path}, line {i} error: {l}')
+                continue
+        return data
+    return [l for l in open(data_path, "r")] 
 
 def python_type_to_json_type(python_type):
     if python_type in [str, 'str']:
@@ -113,3 +142,5 @@ def generate_function_description(func) -> dict:
 
     # Parse to json and return
     return function_description
+
+    

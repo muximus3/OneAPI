@@ -96,7 +96,7 @@ def main():
         return
     if args.prompt and args.config_file:
         tool = OneAPITool.from_config_file(args.config_file)
-        response = tool.simple_chat(
+        response = tool.chat(
             prompt=args.prompt,
             system=args.system,
             model=args.model,
@@ -178,13 +178,6 @@ def main():
                     f.write(f"{key_word}_MODEL={model}\n")
         agent = ChatAgent(llm=OneAPITool.from_config(api_key=api_key, api_base=api_base, api_type=api_type))
         agent.model = model
-        rprint(Rule(style='white', end="\n\n"))
-        rprint(Markdown(f"Using **Model:** `{model}`"), end="\n\n")
-        rprint(Markdown(f"Set `system prompt`, press enter to skip: "))
-        system_message = input("> ")
-        rprint(Rule(style='white', title="Start chat", end="\n\n"))
-
-        agent.system_message = system_message
         agent.chat()
 if __name__ == "__main__":
     main()

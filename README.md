@@ -19,6 +19,9 @@ Easily access multiple ChatGPT or similar APIs using Teaminal/Python
 - `:d_clear` to clear the conversation history and system prompt
 - `:undo` to remove the latest message
 - `:save` to save the current session history (the program also saves automatically upon exit)
+- `:load` to load the last conversation from cache file
+- `:system` to set the system prompt
+
 
 
 

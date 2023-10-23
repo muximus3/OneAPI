@@ -2,17 +2,19 @@ from setuptools import setup, find_packages
 
 setup(
     name="one-api-tool",
-    version="1.1.4",
+    version="1.1.9",
     packages=find_packages(),
     install_requires=[
         # Add your library's dependencies here
         "pydantic",
         "openai",
         "anthropic>=0.3",
+        "huggingface_hub",
         "requests",
         "httpx",
         "rich",
         "inquirer",
+        "Jinja2",
         "aiohttp",
         "tiktoken",
         "python-dotenv",

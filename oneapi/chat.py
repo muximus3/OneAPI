@@ -6,6 +6,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.markdown import Markdown
 from rich.box import MINIMAL, ROUNDED, SIMPLE_HEAD
+from rich.padding import Padding
 import re
 import time
 from openai.error import RateLimitError
@@ -42,7 +43,7 @@ class MessageBlock:
         if cursor:
             text += ' █'
         markdown = Markdown(text)
-        panel = Panel(markdown, box=MINIMAL, style="white on black")
+        panel = Padding(Panel(markdown, box=MINIMAL, style="white on black"), (1, 0, 1, 0))
         # panel.expand = True
         self.live.update(panel, refresh=True)
 
@@ -171,7 +172,7 @@ class ChatAgent:
 
             if not user_input.strip():
                 # regenerate
-                if self.messages[-1]['role'] == 'user':
+                if len(self.messages) > 0 and self.messages[-1]['role'] == 'user':
                     try:
                         self.respond()    
                     except KeyboardInterrupt:
@@ -197,18 +198,27 @@ class ChatAgent:
                 
     
     def respond(self):
-        token_counts = self.tool.count_tokens([m["content"] for m in self.messages])
         attempts = 16
+        if not self.model.strip():
+            max_new_token = 1024 
+        else:
+            token_counts = self.tool.count_tokens([m["content"] for m in self.messages]  + [self.system_message])
+            if self.model.startswith('claude'):
+                max_new_token = 80000 - token_counts
+            elif self.model.startswith('gpt-4'):
+                max_new_token = 8000 - token_counts
+            elif self.model.startswith('gpt-3'):
+                max_new_token = 4000 - token_counts
         try:
             # print(self.system_message)
             # print(Markdown(json.dumps(self.messages, indent=2, ensure_ascii=False)))
             # print(self.tool._preprocess_claude_prompt(self.messages))
-            response = self.tool.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature)
+            response = self.tool.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_new_tokens=max_new_token)
         except RateLimitError as e:
             print(Markdown(f"> We hit a rate limit. Cooling off for {attempts} seconds..."))
             time.sleep(attempts)
             try:
-                response = self.tool.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature)
+                response = self.tool.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_new_token=max_new_token)
             except Exception as e:
                 pass
         except Exception as e:

@@ -7,14 +7,20 @@ from pydantic import BaseModel
 from abc import ABC, abstractmethod
 import sys
 import os
-from typing import Callable, Optional, Sequence, List
+from typing import Callable, Optional, Sequence, List, Literal
 import tiktoken
 import logging
 import asyncio
 import aiohttp
 from openai.openai_object import OpenAIObject
+from huggingface_hub import InferenceClient, AsyncInferenceClient
 import time
 from tqdm import tqdm
+try:
+    from jinja2.exceptions import TemplateError
+    from jinja2.sandbox import ImmutableSandboxedEnvironment
+except ImportError:
+    raise ImportError("comile requires jinja2 to be installed.")
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
 from oneapi.utils import generate_function_description
 logger = logging.getLogger(__name__)
@@ -25,7 +31,17 @@ logging.basicConfig(
     filemode="a"
 )
 CLAUDE_TEMPLATE = "\n\nHuman: {prompt}\n\nAssistant:"
-    
+
+def compile_jinja_template(chat_template):
+    def raise_exception(message):
+        raise TemplateError(message)
+    jinja_env = ImmutableSandboxedEnvironment(trim_blocks=True, lstrip_blocks=True)
+    jinja_env.globals["raise_exception"] = raise_exception
+    return jinja_env.from_string(chat_template)
+
+def render_jinja_template(template, msgs, **kwargs):
+    return template.render(messages=msgs, **kwargs)
+
 class AbstrctMethod(BaseModel):
     api_key: str
     api_base: str
@@ -62,6 +78,14 @@ class OpenAIMethod(AbstrctMethod):
     method_model_info :str = "models"
     method_chat : str = "/chat/completions"
     method_commpletions : str = "completions"
+class HuggingFaceMethod(AbstrctMethod):
+    api_key: str = ""
+    api_base: str
+    api_type: str = "huggingface"
+    api_version: str = ""
+    method_list_models : str = ""
+    method_model_info : str = ""
+    method_commpletions : str = ""
 
 class OpenAIDecodingArguments(BaseModel):
     messages: List[dict] 
@@ -106,6 +130,20 @@ class ClaudeDecodingArguments(BaseModel):
     stream: bool = True
     stop_sequences: Optional[Sequence[str]] = [anthropic.HUMAN_PROMPT]
 
+class HuggingFaceDecodingArguments(BaseModel):
+        prompt: str
+        stream: bool = False
+        do_sample: bool = False
+        max_new_tokens: int = 1024
+        best_of: Optional[int] = None
+        repetition_penalty: Optional[float] = None
+        return_full_text: bool = False
+        seed: Optional[int] = None
+        stop_sequences: Optional[List[str]] = None
+        temperature: Optional[float] = None
+        top_k: Optional[int] = None
+        top_p: Optional[float] = None
+
 
 class AbstractAPITool(ABC):
 
@@ -117,9 +155,9 @@ class AbstractAPITool(ABC):
     async def achat(args):
         raise NotImplementedError
 
-class OpenAITool(AbstractAPITool):
+class OpenAIClient(AbstractAPITool):
 
-    def __init__(self,method : AbstrctMethod) -> None:
+    def __init__(self, method : AbstrctMethod) -> None:
         self.method = method
         self.encoder = None
 
@@ -240,30 +278,16 @@ class OpenAITool(AbstractAPITool):
 
 
 
-class ClaudeAITool(AbstractAPITool):
+class ClaudeClient(AbstractAPITool):
     """
     https://console.anthropic.com/claude
     https://github.com/anthropics/anthropic-sdk-python/blob/main/examples/basic_stream.py
     https://console.anthropic.com/docs/api/reference
     """
-    def __init__(self,method : AbstrctMethod) -> None:
+    def __init__(self, method : AbstrctMethod) -> None:
         self.method = method
         self.client = anthropic.Client(api_key=method.api_key)
         self.aclient = anthropic.AsyncClient(api_key=method.api_key)
-    
-    
-    async def achat(self, args: ClaudeDecodingArguments):
-        resp = await self.aclient.completions.create(**args.dict())
-        if args.stream:
-            full_comp = ""
-            async for data in resp:
-                if data.stop_reason == 'stop_sequence':
-                    break
-                full_comp += data.completion
-
-            return full_comp
-        else:
-            return resp.completion
                 
     def chat_stream(self, resp):
         for data in resp:
@@ -277,14 +301,64 @@ class ClaudeAITool(AbstractAPITool):
             return self.chat_stream(resp)
         else:
             return resp.completion
+                
+    async def achat(self, args: ClaudeDecodingArguments):
+        resp = await self.aclient.completions.create(**args.dict())
+        if args.stream:
+            full_comp = ""
+            async for data in resp:
+                if data.stop_reason == 'stop_sequence':
+                    break
+                full_comp += data.completion
+
+            return full_comp
+        else:
+            return resp.completion
 
     def count_tokens(self, texts: List[str]) -> int:
         return sum([self.client.count_tokens(text) for text in texts])
         
             
+class HuggingfaceClient(AbstractAPITool):
+
+    def __init__(self, method : AbstrctMethod) -> None:
+        self.method = method
+        self.huggingface_client = None
+        self.async_huggingface_client = None
+
+    def chat_stream(self, resp):
+        for data in resp:
+            if data.details and data.details.finish_reason:
+                break
+            yield data.token.text
+
+    def chat(self, args: HuggingFaceDecodingArguments):
+        if self.huggingface_client is None:
+            self.huggingface_client = InferenceClient(self.method.api_base)
+        resp = self.huggingface_client.text_generation(**args.dict(), details=True)
+        if args.stream:
+            return self.chat_stream(resp)
+        else:
+            return resp.generated_text
+    
+    async def achat(self, args: HuggingFaceDecodingArguments):
+        if self.async_huggingface_client is None:
+            self.async_huggingface_client = AsyncInferenceClient(self.method.api_base)
+        resp = await self.async_huggingface_client.text_generation(**args.dict(), details=True)
+        if args.stream:
+            full_comp = ""
+            async for data in resp:
+                if data.details and data.details.finish_reason:
+                    break
+                full_comp += data.token.text
+            return full_comp
+        else:
+            return resp.generated_text
+
 
 class OneAPITool():
     HUMAN = ['human', 'user']
+    CUSTOM_TEMPLATE = """{% for message in messages %}{% if loop.first %}{% if message['role'] == 'user' %}{% if loop.length != 1 %}{{ '<s>Human:\n' + message['content'] }}{% else %}{{ '\n\nHuman:\n' + message['content'] + '\n\nAssistant:\n' }}{% endif %}{% elif message['role'] == 'system' %}{{ '<s>System:\n' + message['content'] }}{% endif %}{% elif message['role'] == 'user' %}{% if loop.last %}{{ '\n\nHuman:\n' + message['content'] + '\n\nAssistant:\n'}}{% else %}{{ '\n\nHuman:\n' + message['content']}}{% endif %}{% elif message['role'] == 'assistant' %}{{ '\n\nAssistant:\n' + message['content'] }}{% elif loop.last %}{% endif %}{% endfor %}"""
 
     def __init__(self, tool: AbstractAPITool) -> None:
         self.tool = tool
@@ -295,27 +369,31 @@ class OneAPITool():
         api_type = config.get("api_type")
 
         if api_type == "claude":
-            return cls(ClaudeAITool(ClaudeMethod(api_key=config["api_key"], api_base=config["api_base"])))
+            return cls(ClaudeClient(ClaudeMethod(api_key=config["api_key"], api_base=config["api_base"])))
         elif api_type == "azure":
             api_version = config.get("api_version")
             if api_version is None:
                 api_version = "2023-07-01-preview"
-            return cls(OpenAITool(AzureMethod(api_key=config["api_key"], api_base=config["api_base"], api_version=api_version)))
+            return cls(OpenAIClient(AzureMethod(api_key=config["api_key"], api_base=config["api_base"], api_version=api_version)))
         elif api_type == "open_ai":
-            return cls(OpenAITool(OpenAIMethod(api_key=config["api_key"], api_base=config["api_base"])))
+            return cls(OpenAIClient(OpenAIMethod(api_key=config["api_key"], api_base=config["api_base"])))
+        elif api_type == "huggingface":
+            return cls(HuggingfaceClient(HuggingFaceMethod(api_base=config["api_base"])))
         else:
-            raise AssertionError(f"Couldn\'t find API type in config file: {config_file}. Please specify \"api_type\" as \"claude\", \"azure\", or \"open_ai\".")
+            raise AssertionError(f"Couldn\'t find API type in config file: {config_file}. Please specify \"api_type\" as \"claude\", \"azure\", \"open_ai\", or \"huggingface\".")
 
     @classmethod
     def from_config(cls, api_key, api_base, api_type, api_version="2023-07-01-preview"):
         if api_type == "claude":
-            return cls(ClaudeAITool(ClaudeMethod(api_key=api_key, api_base=api_base)))
+            return cls(ClaudeClient(ClaudeMethod(api_key=api_key, api_base=api_base)))
         elif api_type == "azure":
-            return cls(OpenAITool(AzureMethod(api_key=api_key, api_base=api_base, api_version=api_version)))
+            return cls(OpenAIClient(AzureMethod(api_key=api_key, api_base=api_base, api_version=api_version)))
         elif api_type == "open_ai":
-            return cls(OpenAITool(OpenAIMethod(api_key=api_key, api_base=api_base)))
+            return cls(OpenAIClient(OpenAIMethod(api_key=api_key, api_base=api_base)))
+        elif api_type == "huggingface":
+            return cls(HuggingfaceClient(HuggingFaceMethod(api_base=api_base)))
         else:
-            raise AssertionError(f"Couldn\'t find API type: {api_type}. Please specify \"api_type\" as \"claude\", \"azure\", or \"open_ai\".")
+            raise AssertionError(f"Couldn\'t find API type: {api_type}. Please specify \"api_type\" as \"claude\", \"azure\", \"open_ai\", or \"huggingface\".")
 
 
     @staticmethod
@@ -371,18 +449,21 @@ class OneAPITool():
             raise AssertionError(f"Prompt must be a string, list of strings. Got {type(prompt)} instead.")
         return msgs
     @staticmethod
-    def _preprocess_claude_prompt(prompt: str|list[str], system: str = "") -> str:
+    def _preprocess_claude_prompt(prompt: str|list[str], system = "", human_prompt=anthropic.HUMAN_PROMPT, ai_prompt=anthropic.AI_PROMPT, system_prompt="") -> str:
         if isinstance(prompt, str):
-            return f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}" if not system else f"{anthropic.HUMAN_PROMPT} {system}\n\n{prompt}{anthropic.AI_PROMPT}"
+            if not system_prompt:
+                return f"{human_prompt} {prompt}{ai_prompt}" if not system else f"{human_prompt} {system}\n\n{prompt}{ai_prompt}"
+            else:
+                return f"{human_prompt}{prompt}{ai_prompt}" if not system else f"{system_prompt}{system}{human_prompt}\n\n{prompt}{ai_prompt}"
         # If it is a list of strings, we assume that the even positions are always human questions, and thus correspond one-to-one with the answers.
         elif isinstance(prompt, list) and isinstance(prompt[0], str):
-            msg_list = [f"{anthropic.HUMAN_PROMPT} {p}" if i%2 == 0 else f"{anthropic.AI_PROMPT} {p}" for i, p in enumerate(prompt)]
+            msg_list = [f"{human_prompt} {p}" if i%2 == 0 else f"{ai_prompt} {p}" for i, p in enumerate(prompt)]
             if system:
-                msg_list[0] = f"{anthropic.HUMAN_PROMPT} {system}\n\n{prompt[0]}"
+                msg_list[0] = f"{human_prompt} {system}\n\n{prompt[0]}"
             if len(msg_list) % 2 == 0:
                 raise AssertionError('prompt must end with "\\n\\nAssistant:" turn')            
             else:
-                msg_list.append(anthropic.AI_PROMPT)
+                msg_list.append(ai_prompt)
             return "".join(msg_list)
         # Adapt to OpenAI/shareGPT style.
         elif isinstance(prompt, list) and isinstance(prompt[0], dict):
@@ -390,25 +471,26 @@ class OneAPITool():
             if OneAPITool.get_role(prompt[0]) in  ['system', 'system_prompt'] and len(prompt) > 1:
                 system = OneAPITool.get_content(prompt[0])
                 content = OneAPITool.get_content(prompt[1])
-                plain_msg += f"{anthropic.HUMAN_PROMPT} {system}\n\n{content}"
+                plain_msg += f"{human_prompt} {system}\n\n{content}"
                 prompt = prompt[2:]
                 if len(prompt) == 0:
-                    return plain_msg + anthropic.AI_PROMPT
+                    return plain_msg + ai_prompt
             for episode in prompt:
                 speaker = OneAPITool.get_role(episode)
                 content = OneAPITool.get_content(episode)
                 if not speaker or not content: 
                     raise AssertionError(f'Empty speaker or content at episode:{episode}')
-                plain_msg += f"{anthropic.HUMAN_PROMPT} {content}" if OneAPITool.from_human(speaker) else f"{anthropic.AI_PROMPT} {content}"
+                plain_msg += f"{human_prompt} {content}" if OneAPITool.from_human(speaker) else f"{ai_prompt} {content}"
             if OneAPITool.from_human(OneAPITool.get_role(prompt[-1])):
-                plain_msg += anthropic.AI_PROMPT
+                plain_msg += ai_prompt
             else:
                 raise AssertionError('prompt must end with "\\n\\nAssistant:" turn')
             return plain_msg
         else:
             raise AssertionError(f"Prompt must be a string, list of strings. Got {type(prompt)} instead.")
-    def chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=False, **kwargs):
-        if isinstance(self.tool, OpenAITool):
+    
+    def chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=1024, stream:bool=False, **kwargs):
+        if isinstance(self.tool, OpenAIClient):
             msgs = self._preprocess_openai_prompt(prompt, system)
             if isinstance(self.tool.method, AzureMethod):
                 args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
@@ -420,17 +502,21 @@ class OneAPITool():
                 if function_call is not None and functions is None:
                     function_call = None
                 args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call=function_call, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
-        elif isinstance(self.tool, ClaudeAITool):
+        elif isinstance(self.tool, ClaudeClient):
             prompt = self._preprocess_claude_prompt(prompt, system) 
             args = ClaudeDecodingArguments(prompt=prompt, model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
+        elif isinstance(self.tool, HuggingfaceClient):
+            msgs = self._preprocess_openai_prompt(prompt, system)
+            prompt = render_jinja_template(compile_jinja_template(self.CUSTOM_TEMPLATE), msgs)
+            args = HuggingFaceDecodingArguments(prompt=prompt, stream=stream, max_new_tokens=max_new_tokens, temperature=temperature, **kwargs)
         else:
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
 
         response = self.tool.chat(args)
         return response
 
-    async def achat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=False, **kwargs):
-        if isinstance(self.tool, OpenAITool):
+    async def achat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=1024, stream:bool=False, **kwargs):
+        if isinstance(self.tool, OpenAIClient):
             msgs = self._preprocess_openai_prompt(prompt, system)
             if isinstance(self.tool.method, AzureMethod):
                 args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
@@ -442,16 +528,20 @@ class OneAPITool():
                 if function_call is not None and functions is None:
                     function_call = None
                 args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call=function_call, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
-        elif isinstance(self.tool, ClaudeAITool):
+        elif isinstance(self.tool, ClaudeClient):
             prompt = self._preprocess_claude_prompt(prompt, system) 
             args = ClaudeDecodingArguments(prompt=prompt, model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
+        elif isinstance(self.tool, HuggingfaceClient):
+            msgs = self._preprocess_openai_prompt(prompt, system)
+            prompt = render_jinja_template(compile_jinja_template(self.CUSTOM_TEMPLATE), msgs)
+            args = HuggingFaceDecodingArguments(prompt=prompt, stream=stream, max_new_tokens=max_new_tokens, temperature=temperature, **kwargs)
         else:
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
 
         response = await self.tool.achat(args)
         return response
 
-    def function_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=2048, stream:bool=True, **kwargs):
+    def function_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=1024, stream:bool=True, **kwargs):
         """A full chain of function calling.
         Step1: Call the model with functions and user prompt.
         Step2: Use the model response to call your API.
@@ -464,14 +554,14 @@ class OneAPITool():
             function_call (Optional[str | dict], optional): Controls how the model responds to function calls. "none" means the model does not call a function, and responds to the end-user. "auto" means the model can pick between an end-user or calling a function. Specifying a particular function via {"name":\ "my_function"} forces the model to call that function. "none" is the default when no functions are present. "auto" is the default if functions are present.. Defaults to None.
             model (str, optional): Model name. Defaults to GPT-3.5-turbo/Claude-v1.3-100k. 
             temperature (int, optional): What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. Defaults to 1.
-            max_new_tokens (int, optional): Defaults to 2048.
+            max_new_tokens (int, optional): Defaults to 1024.
             stream (bool, optional): Defaults to True.
 
         Raises:
             AssertionError: When no function response found. Usually because of prompt injection.
         """
         assert len(functions) > 0, "No functions found."
-        if isinstance(self.tool, OpenAITool) and isinstance(self.tool.method, OpenAIMethod):
+        if isinstance(self.tool, OpenAIClient) and isinstance(self.tool.method, OpenAIMethod):
             msgs = self._preprocess_openai_prompt(prompt, system)
             function_response = self.simple_chat(prompt, system, functions, function_call, model, temperature, max_new_tokens, stream, **kwargs)
             if not isinstance(function_response, dict) or not function_response.get("function_call"):
@@ -498,22 +588,22 @@ class OneAPITool():
             raise AssertionError(f"Function chat currently only support api type: {type(self.tool)}")
 
     def get_embeddings(self, texts: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
-        if isinstance(self.tool, OpenAITool):
+        if isinstance(self.tool, OpenAIClient):
             return self.tool.get_embeddings(texts, engine)  
         else:
             raise AssertionError(f"Not supported api type for embeddings: {type(self.tool)}")
 
     def get_embedding(self, text: str, engine="text-embedding-ada-002") -> List[float]:
-        if isinstance(self.tool, OpenAITool):
+        if isinstance(self.tool, OpenAIClient):
             return self.tool.get_embedding(text, engine)
         else:
             raise AssertionError(f"Not supported api type for embeddings: {type(self.tool)}")
     
     def count_tokens(self, texts: List[str], encoding_name: str = 'cl100k_base') -> int:
         assert isinstance(texts, list), f"Input texts must be a list of strings. Got {type(texts)} instead."
-        if isinstance(self.tool, OpenAITool):
+        if isinstance(self.tool, OpenAIClient):
             return self.tool.count_tokens(texts, encoding_name)
-        elif isinstance(self.tool, ClaudeAITool):
+        elif isinstance(self.tool, ClaudeClient):
             return self.tool.count_tokens(texts)
         else:
             raise AssertionError(f"Not supported api type for token counting: {type(self.tool)}")

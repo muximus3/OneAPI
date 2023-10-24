@@ -1,10 +1,8 @@
 # OneAPI
 
-Easily access multiple ChatGPT or similar APIs using Teaminal/Python
+Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatically save them in a training-specific data format.
 
-`Engage in multi-turn conversations with ChatGPT and automatically save them in a training-specific data format.`
-
-**Step 1: Installation (requires Python environment):** `pip install one-api-tool -i <https://pypi.org/simple>`
+**Step 1: Installation (requires Python environment):** `pip install one-api-tool`
 
 **Step 2: Start the command:** `one-api`
 
@@ -38,6 +36,7 @@ The currently supported APIs include:
  - [x] Anthropic Claude series model API.
     - [x] Claude-v1.3-100k, etc.
     - [x] Token number counting.
+- [x] Huggingface LLMs.
 
 ## Installation
 

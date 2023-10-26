@@ -32,20 +32,26 @@ def print_special_token(tokenizer_hf: transformers.PreTrainedTokenizer):
 
 
 if __name__ == "__main__":
-   claude_config = '../ant/config/anthropic_config_personal.json'
-   openai_config = '../ant/config/openapi_official_chenghao.json'
-   azure_config = '../ant/config/openapi_azure_config_xiaoduo_dev5.json'
-   config_file = openai_config
-   tool = OneAPITool.from_config(api_key="", api_base="http://10.0.0.135:8080", api_type="huggingface")
+   config_files = ['../ant/config/huggingface_config_sft_devc.json', '../ant/config/huggingface_config_sft_gpu01.json', '../ant/config/huggingface_config_sft_devb.json', '../ant/config/huggingface_config_sft_devc.json', '../ant/config/huggingface_config_sft_gpu01.json', '../ant/config/huggingface_config_sft_devb.json','../ant/config/huggingface_config_sft_devc.json', '../ant/config/huggingface_config_sft_gpu01.json', '../ant/config/huggingface_config_sft_devb.json', '../ant/config/huggingface_config_sft_devc.json', '../ant/config/huggingface_config_sft_gpu01.json', '../ant/config/huggingface_config_sft_devb.json']   
+   tool = OneAPITool.from_config(api_key="", api_base="http://10.0.0.135:8090", api_type="huggingface")
 
    msgs =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
-           {"role": "user", "content": "让我们来角色扮演。"},
-           ]
-#    print(prompt)
-   res = tool.chat(msgs, stream=False)
-   print('================res:')
-   print(res)
-#    print(tool.chat(msgs))
-#    ep = [msg[-1], {"from": "assistant", "value":res}]
-#    print(json.dumps(ep, ensure_ascii=False))
+           {"role": "user", "content": "让我们来角色扮演。"}]
+   msgs1 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
+           {"role": "user", "content": "1+1=?"}]
+   msgs2 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
+           {"role": "user", "content": "2+2=?"}]
+   msgs3 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
+           {"role": "user", "content": "3+2=?"}]
+   msgs4 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
+           {"role": "user", "content": "3+4=?"}]
+   msgs5 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
+           {"role": "user", "content": "3+12=?"}]
+   msgs6 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
+           {"role": "user", "content": "13+2=?"}]
+   msgs7 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
+           {"role": "user", "content": "1-1=?"}]
+   msgs8 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
+           {"role": "user", "content": "100-1=?"}]
+   print(asyncio.run(batch_chat(config_files * 1, [msgs, msgs1, msgs2, msgs3, msgs4, msgs5, msgs6, msgs7, msgs8])))
 

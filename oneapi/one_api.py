@@ -86,6 +86,7 @@ class HuggingFaceMethod(AbstrctMethod):
     method_list_models : str = ""
     method_model_info : str = ""
     method_commpletions : str = ""
+    chat_template : str = """{% for message in messages %}{% if loop.first %}{% if message['role'] == 'user' %}{% if loop.length != 1 %}{{ '<s>Human:\n' + message['content'] }}{% else %}{{ '<s>Human:\n' + message['content'] + '\n\nAssistant:\n' }}{% endif %}{% elif message['role'] == 'system' %}{{ '<s>System:\n' + message['content'] }}{% endif %}{% elif message['role'] == 'user' %}{% if loop.last %}{{ '\n\nHuman:\n' + message['content'] + '\n\nAssistant:\n'}}{% else %}{{ '\n\nHuman:\n' + message['content']}}{% endif %}{% elif message['role'] == 'assistant' %}{{ '\n\nAssistant:\n' + message['content'] }}{% endif %}{% endfor %}"""
 
 class OpenAIDecodingArguments(BaseModel):
     messages: List[dict] 
@@ -321,7 +322,7 @@ class ClaudeClient(AbstractAPITool):
             
 class HuggingfaceClient(AbstractAPITool):
 
-    def __init__(self, method : AbstrctMethod) -> None:
+    def __init__(self, method : HuggingFaceMethod) -> None:
         self.method = method
         self.huggingface_client = None
         self.async_huggingface_client = None
@@ -358,7 +359,6 @@ class HuggingfaceClient(AbstractAPITool):
 
 class OneAPITool():
     HUMAN = ['human', 'user']
-    CUSTOM_TEMPLATE = """{% for message in messages %}{% if loop.first %}{% if message['role'] == 'user' %}{% if loop.length != 1 %}{{ '<s>Human:\n' + message['content'] }}{% else %}{{ '<s>Human:\n' + message['content'] + '\n\nAssistant:\n' }}{% endif %}{% elif message['role'] == 'system' %}{{ '<s>System:\n' + message['content'] }}{% endif %}{% elif message['role'] == 'user' %}{% if loop.last %}{{ '\n\nHuman:\n' + message['content'] + '\n\nAssistant:\n'}}{% else %}{{ '\n\nHuman:\n' + message['content']}}{% endif %}{% elif message['role'] == 'assistant' %}{{ '\n\nAssistant:\n' + message['content'] }}{% endif %}{% endfor %}"""
 
     def __init__(self, tool: AbstractAPITool) -> None:
         self.tool = tool
@@ -372,18 +372,23 @@ class OneAPITool():
             return cls(ClaudeClient(ClaudeMethod(api_key=config["api_key"], api_base=config["api_base"])))
         elif api_type == "azure":
             api_version = config.get("api_version")
-            if api_version is None:
+            if not api_version:
                 api_version = "2023-07-01-preview"
             return cls(OpenAIClient(AzureMethod(api_key=config["api_key"], api_base=config["api_base"], api_version=api_version)))
         elif api_type == "open_ai":
             return cls(OpenAIClient(OpenAIMethod(api_key=config["api_key"], api_base=config["api_base"])))
         elif api_type == "huggingface":
-            return cls(HuggingfaceClient(HuggingFaceMethod(api_base=config["api_base"])))
+            chat_template = config.get("chat_template")
+            if not chat_template:
+                return cls(HuggingfaceClient(HuggingFaceMethod(api_base=config["api_base"])))
+            else:
+                return cls(HuggingfaceClient(HuggingFaceMethod(api_base=config["api_base"], chat_template=chat_template)))
+                
         else:
             raise AssertionError(f"Couldn\'t find API type in config file: {config_file}. Please specify \"api_type\" as \"claude\", \"azure\", \"open_ai\", or \"huggingface\".")
 
     @classmethod
-    def from_config(cls, api_key, api_base, api_type, api_version="2023-07-01-preview"):
+    def from_config(cls, api_key, api_base, api_type, api_version="2023-07-01-preview", chat_template=""):
         if api_type == "claude":
             return cls(ClaudeClient(ClaudeMethod(api_key=api_key, api_base=api_base)))
         elif api_type == "azure":
@@ -391,7 +396,10 @@ class OneAPITool():
         elif api_type == "open_ai":
             return cls(OpenAIClient(OpenAIMethod(api_key=api_key, api_base=api_base)))
         elif api_type == "huggingface":
-            return cls(HuggingfaceClient(HuggingFaceMethod(api_base=api_base)))
+            if not chat_template:
+                return cls(HuggingfaceClient(HuggingFaceMethod(api_base=api_base)))
+            else:
+                return cls(HuggingfaceClient(HuggingFaceMethod(api_base=api_base, chat_template=chat_template)))
         else:
             raise AssertionError(f"Couldn\'t find API type: {api_type}. Please specify \"api_type\" as \"claude\", \"azure\", \"open_ai\", or \"huggingface\".")
 
@@ -507,7 +515,7 @@ class OneAPITool():
             args = ClaudeDecodingArguments(prompt=prompt, model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
         elif isinstance(self.tool, HuggingfaceClient):
             msgs = self._preprocess_openai_prompt(prompt, system)
-            prompt = render_jinja_template(compile_jinja_template(self.CUSTOM_TEMPLATE), msgs)
+            prompt = render_jinja_template(compile_jinja_template(self.tool.method.chat_template), msgs)
             args = HuggingFaceDecodingArguments(prompt=prompt, stream=stream, max_new_tokens=max_new_tokens, temperature=temperature, **kwargs)
         else:
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
@@ -533,7 +541,7 @@ class OneAPITool():
             args = ClaudeDecodingArguments(prompt=prompt, model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
         elif isinstance(self.tool, HuggingfaceClient):
             msgs = self._preprocess_openai_prompt(prompt, system)
-            prompt = render_jinja_template(compile_jinja_template(self.CUSTOM_TEMPLATE), msgs)
+            prompt = render_jinja_template(compile_jinja_template(self.tool.method.chat_template), msgs)
             args = HuggingFaceDecodingArguments(prompt=prompt, stream=stream, max_new_tokens=max_new_tokens, temperature=temperature, **kwargs)
         else:
             raise AssertionError(f"Not supported api type: {type(self.tool)}")
@@ -563,7 +571,7 @@ class OneAPITool():
         assert len(functions) > 0, "No functions found."
         if isinstance(self.tool, OpenAIClient) and isinstance(self.tool.method, OpenAIMethod):
             msgs = self._preprocess_openai_prompt(prompt, system)
-            function_response = self.simple_chat(prompt, system, functions, function_call, model, temperature, max_new_tokens, stream, **kwargs)
+            function_response = self.chat(prompt, system, functions, function_call, model, temperature, max_new_tokens, stream, **kwargs)
             if not isinstance(function_response, dict) or not function_response.get("function_call"):
                 raise AssertionError(f"Function call not found in response: {function_response}")
             function_response_detail = function_response.get("function_call")
@@ -581,7 +589,7 @@ class OneAPITool():
             logger.debug(f"Function calling step2, calling fun: {function_name}, api_response: {api_response}")
             msgs.append(function_response)
             msgs.append({"role": "function", "name": function_name, "content": json.dumps(api_response)})
-            final_response = self.simple_chat(msgs, model=model, temperature=temperature, max_new_tokens=max_new_tokens, stream=stream, **kwargs)
+            final_response = self.chat(msgs, model=model, temperature=temperature, max_new_tokens=max_new_tokens, stream=stream, **kwargs)
             logger.debug(f"Function calling step3, Model summarize, final_response: {final_response}")
             return final_response
         else:
@@ -612,15 +620,15 @@ class OneAPITool():
 async def bound_fetch(sem, pbar, tool: OneAPITool, prompt: str, model: str, **kwargs):
     async with sem:
         try:
-            res = await tool.asimple_chat(prompt=prompt, model=model, **kwargs)
+            res = await tool.achat(prompt=prompt, model=model, **kwargs)
             pbar.update(1)
             return res
         except Exception as e:
             logger.error(f"Error when calling {model} api: {e}")
             return None
 
-async def batch_chat(api_config_files, texts, engines=None, request_interval=1, **kwargs):
-    process_num = len(api_config_files)
+async def batch_chat(api_config_files, texts, engines=None, request_interval=1, process_num=1,**kwargs):
+    process_num = max(len(api_config_files), process_num)
     engines = engines if engines is not None else [''] * process_num
     if engines is not None and len(engines) == 1:
         engines = engines * process_num

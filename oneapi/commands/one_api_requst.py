@@ -210,9 +210,7 @@ def main():
                     f.write(f"{key_word}_API_BASE={api_base}\n")
                     f.write(f"{key_word}_MODEL={model}\n")
                     f.write(f"{key_word}_CHAT_TEMPELATE={chat_template}\n")
-        tool = OneAPITool.from_config(api_key=api_key, api_base=api_base, api_type=api_type)
-        if api_type == 'huggingface' and chat_template:
-            tool.CUSTOM_TEMPLATE = chat_template
+        tool = OneAPITool.from_config(api_key=api_key, api_base=api_base, api_type=api_type, chat_template=chat_template)
         agent = ChatAgent(llm=tool)
         agent.model = model
         agent.chat()

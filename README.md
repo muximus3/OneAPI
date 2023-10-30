@@ -6,7 +6,7 @@ Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatic
 
 **Step 2: Start the command:** `one-api`
 
-**Step 3: Select the API type and set the key and other information following the guide.**
+**Step 3: Select the API type and set the key or other information following the guide.**
 
 ![Alt text](/assets/image.png)
 
@@ -37,6 +37,8 @@ The currently supported APIs include:
     - [x] Claude-v1.3-100k, etc.
     - [x] Token number counting.
 - [x] Huggingface LLMs.
+    - [x] Huggingface_hub
+    - [x] Local deployed Inference Endpoint.
 
 ## Installation
 
@@ -83,6 +85,8 @@ If you are using Azure APIs, you can find relevant information on the Azure reso
 `api_type`: Currently supported values are "open_ai", "azure", or "claude".
 
 `api_version`: This field is optional. Azure provides several versions of APIs, such as "2023-03-15-preview". However, the OpenAI SDK always has a default value set for this field. Therefore, you should only specify a specific value if you want to use that particular version of APIs.
+
+`chat_template`: This field is optional. When using local endpoint server, pass a JinJa2 template designed specifically for that model. The template render function would takes `messages` as parameters `template.render(messages=msgs, **kwargs)`.
 
 #### Chat example:
 #### There are three acceptable types of inputs for function `chat()`: 
@@ -279,4 +283,5 @@ Save the prompt and response to local file at directory "~/.cache/history_cache_
 - [x] OpenAI function_call.
 - [x] Token number counting.
 - [x] Async requests.
+- [x] Custom LLMs.
 - [ ] Custom token budget.

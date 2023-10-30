@@ -627,8 +627,12 @@ async def bound_fetch(sem, pbar, tool: OneAPITool, prompt: str, model: str, **kw
             logger.error(f"Error when calling {model} api: {e}")
             return None
 
-async def batch_chat(api_config_files, texts, engines=None, request_interval=1, process_num=1,**kwargs):
-    process_num = max(len(api_config_files), process_num)
+async def batch_chat(api_configs, texts, engines=None, request_interval=1, process_num=1,**kwargs):
+    if isinstance(api_configs[0], str):
+        tools = [OneAPITool.from_config_file(config_file) for config_file in api_configs]
+    else:
+        tools = [OneAPITool.from_config(api_key=config.get('api_key'), api_base=config.get('api_base'), api_type=config.get('api_type'), api_version=config.get('api_version'), chat_template=config.get('chat_template')) for config in api_configs]
+    process_num = max(len(api_configs), process_num)
     engines = engines if engines is not None else [''] * process_num
     if engines is not None and len(engines) == 1:
         engines = engines * process_num
@@ -637,7 +641,6 @@ async def batch_chat(api_config_files, texts, engines=None, request_interval=1, 
 
     sem = asyncio.Semaphore(process_num)
     pbar = tqdm(total=len(texts))
-    tools = [OneAPITool.from_config_file(config_file) for config_file in api_config_files]
     tasks = [asyncio.ensure_future(bound_fetch(sem, pbar, tools[i%process_num], prompt=prompt, model=engines[i%process_num], **kwargs))for i, prompt in enumerate(texts)]
     task_batches = [tasks[i:i+process_num] for i in range(0, len(tasks), process_num)]
     results = []

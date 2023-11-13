@@ -94,7 +94,7 @@ VLLM config:
 ```json
 {
     "api_key": "",
-    "api_base": "http://ip:port",
+    "api_base": "http://ip:port/generate",
     "api_type": "vllm",
     "chat_template": "your_jinja2_template"
 }

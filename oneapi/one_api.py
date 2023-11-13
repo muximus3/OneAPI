@@ -1,28 +1,12 @@
 # -*- coding: utf-8 -*-
-import json
-from typing import Optional, Sequence, List
-import openai
-import anthropic
-from pydantic import BaseModel
-from abc import ABC, abstractmethod
-import sys
-import os
-from typing import Callable, Optional, Sequence, List, Literal
-import tiktoken
 import logging
 import asyncio
 import aiohttp
-from openai.openai_object import OpenAIObject
-from huggingface_hub import InferenceClient, AsyncInferenceClient
 import time
+from typing import List
 from tqdm import tqdm
-try:
-    from jinja2.exceptions import TemplateError
-    from jinja2.sandbox import ImmutableSandboxedEnvironment
-except ImportError:
-    raise ImportError("comile requires jinja2 to be installed.")
-sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
-from oneapi.utils import generate_function_description
+from oneapi.utils import load_json
+from  oneapi import clients
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.WARN,
@@ -30,591 +14,43 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     filemode="a"
 )
-CLAUDE_TEMPLATE = "\n\nHuman: {prompt}\n\nAssistant:"
-
-def compile_jinja_template(chat_template):
-    def raise_exception(message):
-        raise TemplateError(message)
-    jinja_env = ImmutableSandboxedEnvironment(trim_blocks=True, lstrip_blocks=True)
-    jinja_env.globals["raise_exception"] = raise_exception
-    return jinja_env.from_string(chat_template)
-
-def render_jinja_template(template, msgs, **kwargs):
-    return template.render(messages=msgs, **kwargs)
-
-class AbstrctMethod(BaseModel):
-    api_key: str
-    api_base: str
-    api_type: str
-    api_version: str
-    method_list_models :str 
-    method_model_info :str
-    method_commpletions :str
-
-class ClaudeMethod(AbstrctMethod):
-    api_key: str
-    api_base: str = "https://api.anthropic.com",
-    api_type: str = "claude"
-    api_version: str = ""
-    method_list_models : str = ""
-    method_model_info : str = ""
-    method_commpletions : str = ""
-
-class AzureMethod(AbstrctMethod):
-    api_key: str
-    api_base: str # Your Azure OpenAI resource's endpoint value.
-    api_type: str = "azure"
-    api_version : str = "2023-07-01-preview" # Official API version, usually there is no need to modify this field.
-    method_list_models :str = "" 
-    method_model_info :str = ""
-    method_commpletions :str = ""
-
-class OpenAIMethod(AbstrctMethod):
-    api_key: str
-    api_base: str = "https://api.openai.com/v1"
-    api_type: str = "open_ai"
-    api_version: str = None
-    method_list_models :str = "models"
-    method_model_info :str = "models"
-    method_chat : str = "/chat/completions"
-    method_commpletions : str = "completions"
-class HuggingFaceMethod(AbstrctMethod):
-    api_key: str = ""
-    api_base: str
-    api_type: str = "huggingface"
-    api_version: str = ""
-    method_list_models : str = ""
-    method_model_info : str = ""
-    method_commpletions : str = ""
-    chat_template : str = """{% for message in messages %}{% if loop.first %}{% if message['role'] == 'user' %}{% if loop.length != 1 %}{{ '<s>Human:\n' + message['content'] }}{% else %}{{ '<s>Human:\n' + message['content'] + '\n\nAssistant:\n' }}{% endif %}{% elif message['role'] == 'system' %}{{ '<s>System:\n' + message['content'] }}{% endif %}{% elif message['role'] == 'user' %}{% if loop.last %}{{ '\n\nHuman:\n' + message['content'] + '\n\nAssistant:\n'}}{% else %}{{ '\n\nHuman:\n' + message['content']}}{% endif %}{% elif message['role'] == 'assistant' %}{{ '\n\nAssistant:\n' + message['content'] }}{% endif %}{% endfor %}"""
-
-class OpenAIDecodingArguments(BaseModel):
-    messages: List[dict] 
-    model: str = "gpt-3.5-turbo"
-    max_tokens: int = 2048
-    temperature: float = 1
-    functions: Optional[list] = None
-    # Controls how the model responds to function calls. 
-    # "none" means the model does not call a function, and responds to the end-user. 
-    # "auto" means the model can pick between an end-user or calling a function. Specifying a particular function via {"name":\ "my_function"} forces the model to call that function. 
-    # "none" is the default when no functions are present. "auto" is the default if functions are present.
-    function_call : Optional[str|dict] = None
-    top_p: float = 1
-    n: int = 1
-    stream: bool = False
-    stop: Optional[Sequence[str]] = None
-    presence_penalty: float = 0
-    frequency_penalty: float = 0
-    user: Optional[str] = ""
-
-class AzureDecodingArguments(BaseModel):
-    messages: List[dict] 
-    engine: str = "gpt-35-turbo" # The deployment name you chose when you deployed the ChatGPT or GPT-4 model
-    max_tokens: int = 2048
-    temperature: float = 1
-    top_p: float = 1
-    n: int = 1
-    stream: bool = False
-    stop: Optional[Sequence[str]] = None
-    presence_penalty: float = 0
-    frequency_penalty: float = 0
-    user: Optional[str] = ""
-
-
-class ClaudeDecodingArguments(BaseModel):
-    prompt: str
-    model: str = "claude-instant-v1"
-    max_tokens_to_sample: int = 2048
-    temperature: float = 1
-    top_p: float = -1
-    top_k: int = -1
-    stream: bool = True
-    stop_sequences: Optional[Sequence[str]] = [anthropic.HUMAN_PROMPT]
-
-class HuggingFaceDecodingArguments(BaseModel):
-        prompt: str
-        stream: bool = False
-        do_sample: bool = False
-        max_new_tokens: int = 1024
-        best_of: Optional[int] = None
-        repetition_penalty: Optional[float] = None
-        return_full_text: bool = False
-        seed: Optional[int] = None
-        stop_sequences: Optional[List[str]] = None
-        temperature: Optional[float] = None
-        top_k: Optional[int] = None
-        top_p: Optional[float] = None
-
-
-class AbstractAPITool(ABC):
-
-    @abstractmethod
-    def chat(args):
-        raise NotImplementedError
-        
-    @abstractmethod
-    async def achat(args):
-        raise NotImplementedError
-
-class OpenAIClient(AbstractAPITool):
-
-    def __init__(self, method : AbstrctMethod) -> None:
-        self.method = method
-        self.encoder = None
-
-
-    def reset_environment(self):
-        """Reset the environment variables to the default values. When using asyncio to all multiple apis, this function should be called before each api call.
-        """
-        openai.api_key = self.method.api_key
-        openai.api_base = self.method.api_base
-        openai.api_type = self.method.api_type
-        openai.api_version = self.method.api_version
-
-    def chat_stream(self, resp):
-        for chunk in resp:
-            if not chunk['id'] or len(chunk["choices"]) == 0: 
-                continue
-            chunk_choice = chunk["choices"][0]
-            chunk_message = chunk_choice["delta"]  # extract the message
-            finish_reason = chunk_choice["finish_reason"]
-            if finish_reason == "stop" or finish_reason == "length":
-                break
-            # collected_messages.append(chunk_message)  # save the message
-            yield chunk_message.get("content", "")
-    
-    def chat(self, args: OpenAIDecodingArguments):
-        """
-        https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/chatgpt?pivots=programming-language-chat-completions
-        https://platform.openai.com/docs/api-reference/chat
-        """
-        self.reset_environment()
-        data = args.dict()
-        is_function_call = data.get("functions", None) is not None
-        if is_function_call:
-            data["stream"] = False  
-        else:
-            if isinstance(args, OpenAIDecodingArguments):
-                data.pop("functions")
-                data.pop("function_call")
-        completion = openai.ChatCompletion.create(**data)
-        if data.get("stream", False):
-            return self.chat_stream(completion)
-        else:
-            response_message = completion.choices[0].message
-            if is_function_call:
-                if response_message.get("function_call") is not None:
-                    return response_message
-            return response_message.get("content", "")
-
-    async def achat(self, args: OpenAIDecodingArguments):
-        self.reset_environment()
-        data = args.dict()
-        is_function_call = data.get("functions", None) is not None
-        if is_function_call:
-            data["stream"] = False  
-        else:
-            if isinstance(args, OpenAIDecodingArguments):
-                data.pop("functions")
-                data.pop("function_call")
-        completion = await openai.ChatCompletion.acreate(**data)
-        if data.get("stream", False):
-            # create variables to collect the stream of chunks
-            collected_messages = []
-            # iterate through the stream of events
-            async for chunk in completion:
-                if not chunk['id'] or len(chunk["choices"]) == 0: 
-                    continue
-                chunk_choice = chunk["choices"][0]
-                chunk_message = chunk_choice["delta"]  # extract the message
-                finish_reason = chunk_choice["finish_reason"]
-                if finish_reason == "stop" or finish_reason == "length":
-                    break
-                collected_messages.append(chunk_message)  # save the message
-            full_reply_content = "".join([m.get("content", "") for m in collected_messages])
-            return full_reply_content
-        else:
-            response_message = completion.choices[0].message
-            if is_function_call:
-                if response_message.get("function_call") is not None:
-                    return response_message
-            return response_message.get("content", "")
-         
-
-
-    def get_embeddings(self, texts: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
-        self.reset_environment()
-        assert len(texts) <= 2048, "The batch size should not be larger than 2048."
-        # replace newlines, which can negatively affect performance.
-        texts = [text.replace("\n", " ") for text in texts]
-
-        data = openai.Embedding.create(input=texts, engine=engine).data
-        data = sorted(data, key=lambda x: x["index"])  # maintain the same order as input.
-        return [d["embedding"] for d in data]
-
-
-    def get_embedding(self, text: str, engine="text-embedding-ada-002") -> List[float]:
-        self.reset_environment()
-        # replace newlines, which can negatively affect performance.
-        text = text.replace("\n", " ")
-        return openai.Embedding.create(input=[text], engine=engine)["data"][0]["embedding"]
-
-    def count_tokens(self, texts: List[str], encoding_name: str = 'cl100k_base') -> int:
-        self.reset_environment()
-        """
-        Encoding name	OpenAI models
-        cl100k_base	    gpt-4, gpt-3.5-turbo, text-embedding-ada-002
-        p50k_base	    Codex models, text-davinci-002, text-davinci-003
-        r50k_base (or gpt2)	GPT-3 models like davinci
-        Args:
-            texts (List[str]): [description]
-            encoding_name (str, optional): Defaults to 'cl100k_base'.
-        Returns:
-            int: [description]
-        """
-        if self.encoder is None:
-            self.encoder = tiktoken.get_encoding(encoding_name)
-        list_of_tokens = self.encoder.encode_batch(texts)
-        return sum([len(tokens) for tokens in list_of_tokens])
-
-
-
-class ClaudeClient(AbstractAPITool):
-    """
-    https://console.anthropic.com/claude
-    https://github.com/anthropics/anthropic-sdk-python/blob/main/examples/basic_stream.py
-    https://console.anthropic.com/docs/api/reference
-    """
-    def __init__(self, method : AbstrctMethod) -> None:
-        self.method = method
-        self.client = anthropic.Client(api_key=method.api_key)
-        self.aclient = anthropic.AsyncClient(api_key=method.api_key)
-                
-    def chat_stream(self, resp):
-        for data in resp:
-            if data.stop_reason == 'stop_sequence':
-                break
-            yield data.completion
-
-    def chat(self, args: ClaudeDecodingArguments):
-        resp = self.client.completions.create(**args.dict())
-        if args.stream:
-            return self.chat_stream(resp)
-        else:
-            return resp.completion
-                
-    async def achat(self, args: ClaudeDecodingArguments):
-        resp = await self.aclient.completions.create(**args.dict())
-        if args.stream:
-            full_comp = ""
-            async for data in resp:
-                if data.stop_reason == 'stop_sequence':
-                    break
-                full_comp += data.completion
-
-            return full_comp
-        else:
-            return resp.completion
-
-    def count_tokens(self, texts: List[str]) -> int:
-        return sum([self.client.count_tokens(text) for text in texts])
-        
-            
-class HuggingfaceClient(AbstractAPITool):
-
-    def __init__(self, method : HuggingFaceMethod) -> None:
-        self.method = method
-        self.huggingface_client = None
-        self.async_huggingface_client = None
-
-    def chat_stream(self, resp):
-        for data in resp:
-            if data.details and data.details.finish_reason:
-                break
-            yield data.token.text
-
-    def chat(self, args: HuggingFaceDecodingArguments):
-        if self.huggingface_client is None:
-            self.huggingface_client = InferenceClient(self.method.api_base)
-        resp = self.huggingface_client.text_generation(**args.dict(), details=True)
-        if args.stream:
-            return self.chat_stream(resp)
-        else:
-            return resp.generated_text
-    
-    async def achat(self, args: HuggingFaceDecodingArguments):
-        if self.async_huggingface_client is None:
-            self.async_huggingface_client = AsyncInferenceClient(self.method.api_base)
-        resp = await self.async_huggingface_client.text_generation(**args.dict(), details=True)
-        if args.stream:
-            full_comp = ""
-            async for data in resp:
-                if data.details and data.details.finish_reason:
-                    break
-                full_comp += data.token.text
-            return full_comp
-        else:
-            return resp.generated_text
-
-
 class OneAPITool():
-    HUMAN = ['human', 'user']
-
-    def __init__(self, tool: AbstractAPITool) -> None:
-        self.tool = tool
+    def __init__(self, client: clients.AbstractClient) -> None:
+        self.client = client
 
     @classmethod
     def from_config_file(cls, config_file):
-        config = cls.load_json(config_file)
+        config = load_json(config_file)
         api_type = config.get("api_type")
-
-        if api_type == "claude":
-            return cls(ClaudeClient(ClaudeMethod(api_key=config["api_key"], api_base=config["api_base"])))
-        elif api_type == "azure":
-            api_version = config.get("api_version")
-            if not api_version:
-                api_version = "2023-07-01-preview"
-            return cls(OpenAIClient(AzureMethod(api_key=config["api_key"], api_base=config["api_base"], api_version=api_version)))
-        elif api_type == "open_ai":
-            return cls(OpenAIClient(OpenAIMethod(api_key=config["api_key"], api_base=config["api_base"])))
-        elif api_type == "huggingface":
-            chat_template = config.get("chat_template")
-            if not chat_template:
-                return cls(HuggingfaceClient(HuggingFaceMethod(api_base=config["api_base"])))
-            else:
-                return cls(HuggingfaceClient(HuggingFaceMethod(api_base=config["api_base"], chat_template=chat_template)))
-                
-        else:
-            raise AssertionError(f"Couldn\'t find API type in config file: {config_file}. Please specify \"api_type\" as \"claude\", \"azure\", \"open_ai\", or \"huggingface\".")
+        client_cls = clients.clients_register.get(api_type)
+        client = client_cls.from_config(config)
+        return cls(client)
 
     @classmethod
-    def from_config(cls, api_key, api_base, api_type, api_version="2023-07-01-preview", chat_template=""):
-        if api_type == "claude":
-            return cls(ClaudeClient(ClaudeMethod(api_key=api_key, api_base=api_base)))
-        elif api_type == "azure":
-            return cls(OpenAIClient(AzureMethod(api_key=api_key, api_base=api_base, api_version=api_version)))
-        elif api_type == "open_ai":
-            return cls(OpenAIClient(OpenAIMethod(api_key=api_key, api_base=api_base)))
-        elif api_type == "huggingface":
-            if not chat_template:
-                return cls(HuggingfaceClient(HuggingFaceMethod(api_base=api_base)))
-            else:
-                return cls(HuggingfaceClient(HuggingFaceMethod(api_base=api_base, chat_template=chat_template)))
-        else:
-            raise AssertionError(f"Couldn\'t find API type: {api_type}. Please specify \"api_type\" as \"claude\", \"azure\", \"open_ai\", or \"huggingface\".")
+    def from_config(cls, api_key, api_base, api_type, api_version="2023-07-01-preview", chat_template="", **kwargs):
+        client_cls = clients.clients_register.get(api_type)
+        client = client_cls.from_config(dict(api_key=api_key, api_base=api_base, api_type=api_type, api_version=api_version, chat_template=chat_template) | kwargs)
+        return cls(client)
 
 
-    @staticmethod
-    def load_json(file_path):
-        with open(file_path, "r") as f:
-            return json.load(f)
-
-    @staticmethod 
-    def from_human(speaker: str):
-        return speaker.lower() in OneAPITool.HUMAN
-   
-    @staticmethod
-    def get_role(episode):
-        return episode.get('role', episode.get('from', ''))
-
-    @staticmethod
-    def format_role(role):
-        if role.lower() == 'human':
-            return 'user'
-        else:
-            if role.lower().startswith(('gpt', 'claude', 'bing', 'bard')):
-                return 'assistant'
-            else:
-                return role
-
-    @staticmethod
-    def get_content(episode):
-        return episode.get('content', episode.get('value', ''))
-
-    @staticmethod 
-    def _preprocess_openai_prompt(prompt: str|list[str]|list[dict], system: str = "") -> List[dict]:
-        msgs = [] if not system else [dict(role="system", content=system)]
-        if isinstance(prompt, str):
-            msgs.append(dict(role="user", content=prompt))
-        elif isinstance(prompt, list) and isinstance(prompt[0], str):
-            msgs.extend([dict(role="user", content=p) if i%2 == 0 else dict(role='assistant', content=p) for i, p in enumerate(prompt)])
-        elif isinstance(prompt, list) and isinstance(prompt[0], dict):
-            # Format prompt to be consistent with OpenAI's API
-            new_prompt = []
-            for item in prompt:
-                new_item = {}
-                for k, v in item.items():
-                    if k == 'from' or k == 'role':
-                        new_item['role'] = OneAPITool.format_role(v)
-                    elif k == 'value':
-                        new_item['content'] = v
-                    # function call may have different names
-                    else:
-                        new_item[k] = v
-                new_prompt.append(new_item)
-            msgs.extend(new_prompt)
-        else:
-            raise AssertionError(f"Prompt must be a string, list of strings. Got {type(prompt)} instead.")
-        return msgs
-    @staticmethod
-    def _preprocess_claude_prompt(prompt: str|list[str], system = "", human_prompt=anthropic.HUMAN_PROMPT, ai_prompt=anthropic.AI_PROMPT, system_prompt="") -> str:
-        if isinstance(prompt, str):
-            if not system_prompt:
-                return f"{human_prompt} {prompt}{ai_prompt}" if not system else f"{human_prompt} {system}\n\n{prompt}{ai_prompt}"
-            else:
-                return f"{human_prompt}{prompt}{ai_prompt}" if not system else f"{system_prompt}{system}{human_prompt}\n\n{prompt}{ai_prompt}"
-        # If it is a list of strings, we assume that the even positions are always human questions, and thus correspond one-to-one with the answers.
-        elif isinstance(prompt, list) and isinstance(prompt[0], str):
-            msg_list = [f"{human_prompt} {p}" if i%2 == 0 else f"{ai_prompt} {p}" for i, p in enumerate(prompt)]
-            if system:
-                msg_list[0] = f"{human_prompt} {system}\n\n{prompt[0]}"
-            if len(msg_list) % 2 == 0:
-                raise AssertionError('prompt must end with "\\n\\nAssistant:" turn')            
-            else:
-                msg_list.append(ai_prompt)
-            return "".join(msg_list)
-        # Adapt to OpenAI/shareGPT style.
-        elif isinstance(prompt, list) and isinstance(prompt[0], dict):
-            plain_msg = ''
-            if OneAPITool.get_role(prompt[0]) in  ['system', 'system_prompt'] and len(prompt) > 1:
-                system = OneAPITool.get_content(prompt[0])
-                content = OneAPITool.get_content(prompt[1])
-                plain_msg += f"{human_prompt} {system}\n\n{content}"
-                prompt = prompt[2:]
-                if len(prompt) == 0:
-                    return plain_msg + ai_prompt
-            for episode in prompt:
-                speaker = OneAPITool.get_role(episode)
-                content = OneAPITool.get_content(episode)
-                if not speaker or not content: 
-                    raise AssertionError(f'Empty speaker or content at episode:{episode}')
-                plain_msg += f"{human_prompt} {content}" if OneAPITool.from_human(speaker) else f"{ai_prompt} {content}"
-            if OneAPITool.from_human(OneAPITool.get_role(prompt[-1])):
-                plain_msg += ai_prompt
-            else:
-                raise AssertionError('prompt must end with "\\n\\nAssistant:" turn')
-            return plain_msg
-        else:
-            raise AssertionError(f"Prompt must be a string, list of strings. Got {type(prompt)} instead.")
-    
-    def chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=1024, stream:bool=False, **kwargs):
-        if isinstance(self.tool, OpenAIClient):
-            msgs = self._preprocess_openai_prompt(prompt, system)
-            if isinstance(self.tool.method, AzureMethod):
-                args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
-            elif isinstance(self.tool.method, OpenAIMethod):
-                if functions is not None and isinstance(functions, list):
-                    functions = [generate_function_description(func) for func in functions]
-                if function_call is None and functions is not None:
-                    function_call = "auto"
-                if function_call is not None and functions is None:
-                    function_call = None
-                args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call=function_call, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
-        elif isinstance(self.tool, ClaudeClient):
-            prompt = self._preprocess_claude_prompt(prompt, system) 
-            args = ClaudeDecodingArguments(prompt=prompt, model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
-        elif isinstance(self.tool, HuggingfaceClient):
-            msgs = self._preprocess_openai_prompt(prompt, system)
-            prompt = render_jinja_template(compile_jinja_template(self.tool.method.chat_template), msgs)
-            args = HuggingFaceDecodingArguments(prompt=prompt, stream=stream, max_new_tokens=max_new_tokens, temperature=temperature, **kwargs)
-        else:
-            raise AssertionError(f"Not supported api type: {type(self.tool)}")
-
-        response = self.tool.chat(args)
+    def chat(self, prompt: str | list[str] | list[dict], system: str = "", **kwargs):
+        response = self.client.chat(prompt , system, **kwargs)
         return response
 
-    async def achat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=1024, stream:bool=False, **kwargs):
-        if isinstance(self.tool, OpenAIClient):
-            msgs = self._preprocess_openai_prompt(prompt, system)
-            if isinstance(self.tool.method, AzureMethod):
-                args = AzureDecodingArguments(messages=msgs, engine=model if model else "gpt-35-turbo", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
-            elif isinstance(self.tool.method, OpenAIMethod):
-                if functions is not None and isinstance(functions, list):
-                    functions = [generate_function_description(func) for func in functions]
-                if function_call is None and functions is not None:
-                    function_call = "auto"
-                if function_call is not None and functions is None:
-                    function_call = None
-                args = OpenAIDecodingArguments(messages=msgs, functions=functions, function_call=function_call, model=model if model else "gpt-3.5-turbo-0613", temperature=temperature, max_tokens=max_new_tokens, stream=stream, **kwargs)
-        elif isinstance(self.tool, ClaudeClient):
-            prompt = self._preprocess_claude_prompt(prompt, system) 
-            args = ClaudeDecodingArguments(prompt=prompt, model=model if model else "claude-2", temperature=temperature, max_tokens_to_sample=max_new_tokens, stream=stream, **kwargs)
-        elif isinstance(self.tool, HuggingfaceClient):
-            msgs = self._preprocess_openai_prompt(prompt, system)
-            prompt = render_jinja_template(compile_jinja_template(self.tool.method.chat_template), msgs)
-            args = HuggingFaceDecodingArguments(prompt=prompt, stream=stream, max_new_tokens=max_new_tokens, temperature=temperature, **kwargs)
-        else:
-            raise AssertionError(f"Not supported api type: {type(self.tool)}")
-
-        response = await self.tool.achat(args)
+    async def achat(self, prompt: str | list[str] | list[dict], system: str = "", **kwargs):
+        response = await self.client.achat(prompt, system, **kwargs)
         return response
 
-    def function_chat(self, prompt: str|list[str]|list[dict], system:str="", functions:List[Callable]=None, function_call:Optional[str|dict]=None, model:str="", temperature:int=1, max_new_tokens:int=1024, stream:bool=True, **kwargs):
-        """A full chain of function calling.
-        Step1: Call the model with functions and user prompt.
-        Step2: Use the model response to call your API.
-        Step3: Send the API response back to the model to summarize.
+    def get_embeddings(self, texts: List[str], model="text-embedding-ada-002") -> List[List[float]]:
+        return self.client.get_embeddings(texts, model)
 
-        Args:
-            prompt (str | list | dict): User input.
-            system (str, optional): System message for ChatGPT. Defaults to "".
-            functions (List[Callable], optional): A list of functions for model to decide with function to use. Defaults to None.
-            function_call (Optional[str | dict], optional): Controls how the model responds to function calls. "none" means the model does not call a function, and responds to the end-user. "auto" means the model can pick between an end-user or calling a function. Specifying a particular function via {"name":\ "my_function"} forces the model to call that function. "none" is the default when no functions are present. "auto" is the default if functions are present.. Defaults to None.
-            model (str, optional): Model name. Defaults to GPT-3.5-turbo/Claude-v1.3-100k. 
-            temperature (int, optional): What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. Defaults to 1.
-            max_new_tokens (int, optional): Defaults to 1024.
-            stream (bool, optional): Defaults to True.
+    def get_embedding(self, text: str, model="text-embedding-ada-002") -> List[float]:
+        return self.client.get_embedding(text, model)
 
-        Raises:
-            AssertionError: When no function response found. Usually because of prompt injection.
-        """
-        assert len(functions) > 0, "No functions found."
-        if isinstance(self.tool, OpenAIClient) and isinstance(self.tool.method, OpenAIMethod):
-            msgs = self._preprocess_openai_prompt(prompt, system)
-            function_response = self.chat(prompt, system, functions, function_call, model, temperature, max_new_tokens, stream, **kwargs)
-            if not isinstance(function_response, dict) or not function_response.get("function_call"):
-                raise AssertionError(f"Function call not found in response: {function_response}")
-            function_response_detail = function_response.get("function_call")
-            logger.debug(f"Function calling step1, function_response_detail: {function_response_detail}")
-            arguments = json.loads(function_response_detail["arguments"])
-            function_name = function_response_detail["name"]
-            # force to use the function name in function_call
-            if isinstance(function_call, dict) and "name" in function_call:
-                function_name = function_call["name"] 
-            func_name_vs_func = {func.__name__: func for func in functions}
-            func = func_name_vs_func.get(function_name)
-            if not func:
-                raise AssertionError(f"Chosen function {function_name} not found in functions: {functions}")
-            api_response = func(**arguments)
-            logger.debug(f"Function calling step2, calling fun: {function_name}, api_response: {api_response}")
-            msgs.append(function_response)
-            msgs.append({"role": "function", "name": function_name, "content": json.dumps(api_response)})
-            final_response = self.chat(msgs, model=model, temperature=temperature, max_new_tokens=max_new_tokens, stream=stream, **kwargs)
-            logger.debug(f"Function calling step3, Model summarize, final_response: {final_response}")
-            return final_response
-        else:
-            raise AssertionError(f"Function chat currently only support api type: {type(self.tool)}")
-
-    def get_embeddings(self, texts: List[str], engine="text-embedding-ada-002") -> List[List[float]]:
-        if isinstance(self.tool, OpenAIClient):
-            return self.tool.get_embeddings(texts, engine)  
-        else:
-            raise AssertionError(f"Not supported api type for embeddings: {type(self.tool)}")
-
-    def get_embedding(self, text: str, engine="text-embedding-ada-002") -> List[float]:
-        if isinstance(self.tool, OpenAIClient):
-            return self.tool.get_embedding(text, engine)
-        else:
-            raise AssertionError(f"Not supported api type for embeddings: {type(self.tool)}")
-    
-    def count_tokens(self, texts: List[str], encoding_name: str = 'cl100k_base') -> int:
-        assert isinstance(texts, list), f"Input texts must be a list of strings. Got {type(texts)} instead."
-        if isinstance(self.tool, OpenAIClient):
-            return self.tool.count_tokens(texts, encoding_name)
-        elif isinstance(self.tool, ClaudeClient):
-            return self.tool.count_tokens(texts)
-        else:
-            raise AssertionError(f"Not supported api type for token counting: {type(self.tool)}")
+    def count_tokens(self, texts: List[str], model: str = 'gpt-4') -> int:
+        assert isinstance(
+            texts, list), f"Input texts must be a list of strings. Got {type(texts)} instead."
+        return self.client.count_tokens(texts, model)
 
 
 async def bound_fetch(sem, pbar, tool: OneAPITool, prompt: str, model: str, **kwargs):
@@ -627,25 +63,30 @@ async def bound_fetch(sem, pbar, tool: OneAPITool, prompt: str, model: str, **kw
             logger.error(f"Error when calling {model} api: {e}")
             return None
 
-async def batch_chat(api_configs, texts, engines=None, request_interval=1, process_num=1,**kwargs):
+
+async def batch_chat(api_configs, texts, engines=None, request_interval=1, process_num=1, **kwargs):
     if isinstance(api_configs[0], str):
-        tools = [OneAPITool.from_config_file(config_file) for config_file in api_configs]
+        tools = [OneAPITool.from_config_file(
+            config_file) for config_file in api_configs]
     else:
-        tools = [OneAPITool.from_config(api_key=config.get('api_key'), api_base=config.get('api_base'), api_type=config.get('api_type'), api_version=config.get('api_version'), chat_template=config.get('chat_template')) for config in api_configs]
+        tools = [OneAPITool.from_config(api_key=config.get('api_key'), api_base=config.get('api_base'), api_type=config.get(
+            'api_type'), api_version=config.get('api_version'), chat_template=config.get('chat_template')) for config in api_configs]
     process_num = max(len(api_configs), process_num)
     engines = engines if engines is not None else [''] * process_num
     if engines is not None and len(engines) == 1:
         engines = engines * process_num
     if engines is not None and len(engines) > 1:
-        assert len(engines) == process_num, f'Number of engines must be equal to number of api config files when specific multiple engines, but got {len(engines)} engines and {process_num} api config files.'
+        assert len(
+            engines) == process_num, f'Number of engines must be equal to number of api config files when specific multiple engines, but got {len(engines)} engines and {process_num} api config files.'
 
     sem = asyncio.Semaphore(process_num)
     pbar = tqdm(total=len(texts))
-    tasks = [asyncio.ensure_future(bound_fetch(sem, pbar, tools[i%process_num], prompt=prompt, model=engines[i%process_num], **kwargs))for i, prompt in enumerate(texts)]
-    task_batches = [tasks[i:i+process_num] for i in range(0, len(tasks), process_num)]
+    tasks = [asyncio.ensure_future(bound_fetch(sem, pbar, tools[i % process_num], prompt=prompt,
+                                   model=engines[i % process_num], **kwargs))for i, prompt in enumerate(texts)]
+    task_batches = [tasks[i:i+process_num]
+                    for i in range(0, len(tasks), process_num)]
     results = []
     async with aiohttp.ClientSession() as session:
-        openai.aiosession.set(session)
         for batch in task_batches:
             batch_result = await asyncio.gather(*batch)
             results.extend(batch_result)

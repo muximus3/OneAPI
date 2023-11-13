@@ -1,5 +1,7 @@
 # OneAPI
 
+LLM calling tool for researchers, which can interact with the language model based on UI or code.
+
 Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatically save them in a training-specific data format.
 
 **Step 1: Installation (requires Python environment):** `pip install one-api-tool`
@@ -8,7 +10,7 @@ Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatic
 
 **Step 3: Select the API type and set the key or other information following the guide.**
 
-![Alt text](/assets/image.png)
+![Alt text](/assets/select.png)
 
 **Step 4: Initiate the chat dialogue and edit the conversation:**
 
@@ -28,7 +30,6 @@ The currently supported APIs include:
     - [x] ChatGPT: GPT-3.5-turbo/GPT-4.
     - [x] Token number counting.
     - [x] Embedding generation.
-    - [x] Function calling.
  - [x] Microsoft Azure OpenAI Resource endpoint API.
     - [x] ChatGPT: GPT-3.5-turbo/GPT-4.
     - [x] Token number counting.
@@ -39,6 +40,8 @@ The currently supported APIs include:
 - [x] Huggingface LLMs.
     - [x] Huggingface_hub
     - [x] Local deployed Inference Endpoint.
+
+- [x] VLLM deployed Inference Endpoint
 
 ## Installation
 
@@ -76,6 +79,27 @@ Anthropic config:
     "api_type": "claude"
 }
 ```
+Huggingface config:
+
+```json
+{
+    "api_key": "",
+    "api_base": "http://ip:port",
+    "api_type": "huggingface",
+    "chat_template": "your_jinja2_template"
+}
+```
+VLLM config:
+
+```json
+{
+    "api_key": "",
+    "api_base": "http://ip:port",
+    "api_type": "vllm",
+    "chat_template": "your_jinja2_template"
+}
+```
+
 `api_key`: Obtain OpenAI API key from the [OpenAI website](https://platform.openai.com/account/api-keys) and Claude API key from the [Anthropic website](https://console.anthropic.com/account/keys).
 
 `api_base`: This is the base API that is used to send requests. You can also specify a proxy URL, such as "https://your_proxy_domain/v1". For example, you can use Cloudflare workers to proxy the OpenAI site.
@@ -86,7 +110,7 @@ If you are using Azure APIs, you can find relevant information on the Azure reso
 
 `api_version`: This field is optional. Azure provides several versions of APIs, such as "2023-03-15-preview". However, the OpenAI SDK always has a default value set for this field. Therefore, you should only specify a specific value if you want to use that particular version of APIs.
 
-`chat_template`: This field is optional. When using local endpoint server, pass a JinJa2 template designed specifically for that model. The template render function would takes `messages` as parameters `template.render(messages=msgs, **kwargs)`.
+`chat_template`: This field is optional. When using local endpoint server, pass a JinJa2 template designed specifically for that model. The template render function would takes `prompt` and `system` as parameters `template.render(prompt=prompt, system=system)`. The default template is `{{system + prompt}}`.
 
 #### Chat example:
 #### There are three acceptable types of inputs for function `chat()`: 
@@ -101,7 +125,6 @@ import asyncio
 tool = OneAPITool.from_config_file("your_config_file.json")
 
 # There are three acceptable types of inputs.
-conversations_sharegpt_style = [{"from": "human", "value": "hello"}, {"from": "assistant", "value": "Hello, how can i assistant you today?"}, {"from": "human", "value": "I want to know the weather of tomorrow"}]
 conversations_openai_style = [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "Hello, how can i assistant you today?"}, {"role": "user", "content": "I want to know the weather of tomorrow"}]
 conversation_with_system_msg = [{"role": "system", "content": "Now you are a weather forecast assistant."},{"role": "user", "content": "hello"}, {"role": "assistant", "content": "Hello, how can i assistant you today?"}, {"role": "user", "content": "I want to know the weather of tomorrow"}]
 string_message = "Hello AI!"
@@ -141,30 +164,6 @@ prompts = ["How\'s the weather today?", "How\'s the weather today?", "How\'s the
 res = asyncio.run(batch_chat(configs, prompts, stream=False))
 print(res)
 
-```
-#### Simple function calling example:
-
-```python
-from oneapi import OneAPITool
-
-def get_whether_of_city(city: str, date: str) -> dict:
-    """Get the weather of a city at a date
-
-    Args:
-        city (str): City name
-        date (str): Date of the weather
-
-    Returns:
-        Dict: Weather information
-    """
-    return {"city": city, "date": date, "weather": "sunny", "temperature": 30, "air_condition": "good"}
-
-# tool = OneAPITool.from_config(api_key, api_base, api_type)
-tool = OneAPITool.from_config_file("your_config_file.json")
-res = tool.function_chat("What's the weather like in New York on July 10th?", functions=[get_whether_of_city])
-print(res)
-```
-
 <details open> <summary>Output detail</summary>
 
 ```text
@@ -174,38 +173,6 @@ On July 10th, 2022, the weather in New York is expected to be sunny. The tempera
 
 </details>
 
-#### Custom function calling example:
-```python
-from oneapi import OneAPITool
-import json
-
-def get_whether_of_city(city: str, date: str) -> dict:
-    """Get the weather of a city at a date
-
-    Args:
-        city (str): City name
-        date (str): Date of the weather
-
-    Returns:
-        Dict: Weather information
-    """
-    return {"city": city, "date": date, "weather": "sunny", "temperature": 30, "air_condition": "good"}
-
-# tool = OneAPITool.from_config(api_key, api_base, api_type)
-tool = OneAPITool.from_config_file("your_config_file.json")
-msgs = [{"role": "user", "content": "What's the weather like in New York on July 10th?"}]
-function_response = tool.chat(msgs, model="gpt-3.5-turbo-0613", functions=[get_whether_of_city])
-print(f"Function response:\n{function_response}")
-function_call = function_response["function_call"]
-arguments = json.loads(function_call["arguments"])
-wether_info = get_whether_of_city(**arguments)
-print(f"Wether_info:\n{wether_info}")
-msgs.append(function_response)
-msgs.append({"role": "function", "name": function_call["name"], "content": json.dumps(wether_info)})
-second_res = api.chat(msgs, model="gpt-3.5-turbo-0613")
-print(f"Second response:\n{second_res}")
-
-```
 <details open> <summary>Output detail</summary>
 
 Function response:

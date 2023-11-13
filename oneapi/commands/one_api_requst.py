@@ -119,7 +119,7 @@ def main():
         if args.save_to_file:
             if not args.model:
                 api_type = OneAPITool.load_json(args.config_file)['api_type']
-                if api_type in ["open_ai", "azure"]:
+                if api_type in ["open_ai", "azure", "openai"]:
                     model = "gpt-35-turbo" 
                 else:
                     model = "claude-2"
@@ -136,10 +136,10 @@ def main():
             print(f'Save model response to file success! DIR: {cace_file_dir}')
     else:
         rprint(Markdown(f"\nWelcome to **One API**.\n"))
-        questions = [inquirer.List('api_type', message="Please select the API type you want to use", choices=['open_ai', 'azure', 'claude', 'huggingface'])]
+        questions = [inquirer.List('api_type', message="Please select the API type you want to use", choices=['open_ai', 'azure', 'claude', 'huggingface', 'vllm'])]
         answers = inquirer.prompt(questions, theme=GreenPassion())
         api_type = answers['api_type']
-        if api_type == "open_ai":
+        if api_type in "open_ai":
             key_word = "OPENAI"
             default_url = "https://api.openai.com/v1"
             default_model = 'gpt-4'
@@ -153,6 +153,10 @@ def main():
             default_model = 'claude-2'
         elif api_type == "huggingface": 
             key_word = "HUGGINGFACE"
+            default_url = ""
+            default_model = ""
+        elif api_type == "vllm": 
+            key_word = "VLLM"
             default_url = ""
             default_model = ""
 
@@ -170,8 +174,11 @@ def main():
                 model = default_model
             rprint(Markdown(f"\nLoad API config from: {local_env_path}\n"))
         else: 
-            if api_type == "huggingface":
-                questions = [inquirer.Text("api_base", message="Enter the model id hosted on the Hugging Face Hub, e.g. `bigcode/starcoder` or a URL to a deployed Inference Endpoint", validate=lambda _ , c: len(c) > 0)]
+            if api_type == "huggingface" or api_type == "vllm":
+                if api_type == "huggingface":
+                    questions = [inquirer.Text("api_base", message="Enter the model id hosted on the Hugging Face Hub, e.g. `bigcode/starcoder` or a URL to a deployed Inference Endpoint, e.g. `http://localhost:8080`", validate=lambda _ , c: len(c) > 0)]
+                else:
+                    questions = [inquirer.Text("api_base", message="Enter the URL hosted by VLLM, e.g. `http://localhost:8000/generate`", validate=lambda _ , c: len(c) > 0)]
                 answers = inquirer.prompt(questions) 
                 api_base = answers.get('api_base')
                 questions = [inquirer.Confirm("set_chat_template", message=f"Set custom chat template with Jinja2 format?  Enter to use the default chat template", default=False)] 
@@ -189,7 +196,7 @@ def main():
                 model = ""
 
             else:
-                questions = [inquirer.Text("api_key", message=f"{key_word.title()} API key", validate=lambda _ , c: len(c) > 10 if api_type != "huggingface" else True),
+                questions = [inquirer.Text("api_key", message=f"{key_word.title()} API key", validate=lambda _ , c: len(c) > 10),
                 inquirer.Text("api_base", message=f"{key_word.title()} API base URL." + (f" Enter to use the default {key_word.title()} URL." if api_type != 'azure' else ""), validate=lambda _ , c: True if api_type != 'azure' else c.strip().startswith("https://") and "openai.azure.com" in c),
                 inquirer.Text("model", message=f"Model/Engine, Enter to use the default {key_word.title()} model: {default_model}"), 
                 inquirer.Confirm("set_to_envs", message=f"Save API setting to the local environment path? \"{local_env_path}\"", default=True)

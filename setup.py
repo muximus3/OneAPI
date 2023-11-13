@@ -2,13 +2,13 @@ from setuptools import setup, find_packages
 
 setup(
     name="one-api-tool",
-    version="1.2.1",
+    version="1.2.2",
     packages=find_packages(),
     install_requires=[
         # Add your library's dependencies here
         "pydantic",
-        "openai",
-        "anthropic>=0.3",
+        "openai>=1.2.3",
+        "anthropic>=0.6.0",
         "huggingface_hub",
         "requests",
         "httpx",

@@ -8,7 +8,25 @@ import re
 from pathlib import Path
 import fnmatch
 import json
+try:
+    from jinja2.exceptions import TemplateError
+    from jinja2.sandbox import ImmutableSandboxedEnvironment
+except ImportError:
+    raise ImportError("comile requires jinja2 to be installed.")
+
 sys.path.append(os.path.normpath(f'{os.path.dirname(os.path.abspath(__file__))}/..'))
+
+
+def compile_jinja_template(chat_template):
+    def raise_exception(message):
+        raise TemplateError(message)
+    jinja_env = ImmutableSandboxedEnvironment(trim_blocks=True, lstrip_blocks=True)
+    jinja_env.globals["raise_exception"] = raise_exception
+    return jinja_env.from_string(chat_template)
+
+def load_json(file_path):
+    with open(file_path, "r") as f:
+        return json.load(f)
 
 def map_conversations_format(conversations):
     if len(conversations) > 0 and 'from' and 'value' in conversations[0]:

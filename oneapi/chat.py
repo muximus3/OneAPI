@@ -7,12 +7,11 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 from rich.box import MINIMAL, ROUNDED, SIMPLE_HEAD
 from rich.padding import Padding
-import re
 import time
-from openai.error import RateLimitError
 import readline
 import datetime
 import json
+from openai import RateLimitError
 from pathlib import Path
 import sys 
 import os
@@ -59,7 +58,7 @@ class ChatAgent:
         self.context_window = 2000 # For local models only
         self.max_tokens = 750 # For local models only
         self.llm_instance = None
-        self.tool = llm
+        self.llm = llm
         self.system_message = ""
         self.consule = Console()
         month = datetime.datetime.now().strftime("%Y%m")
@@ -202,7 +201,7 @@ class ChatAgent:
         if not self.model.strip():
             max_new_token = 1024 
         else:
-            token_counts = self.tool.count_tokens([m["content"] for m in self.messages]  + [self.system_message])
+            token_counts = self.llm.count_tokens([m["content"] for m in self.messages]  + [self.system_message])
             if self.model.startswith('claude'):
                 max_new_token = 80000 - token_counts
             elif self.model.startswith('gpt-4'):
@@ -213,12 +212,12 @@ class ChatAgent:
             # print(self.system_message)
             # print(Markdown(json.dumps(self.messages, indent=2, ensure_ascii=False)))
             # print(self.tool._preprocess_claude_prompt(self.messages))
-            response = self.tool.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_new_tokens=max_new_token)
+            response = self.llm.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_new_tokens=max_new_token)
         except RateLimitError as e:
             print(Markdown(f"> We hit a rate limit. Cooling off for {attempts} seconds..."))
             time.sleep(attempts)
             try:
-                response = self.tool.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_new_token=max_new_token)
+                response = self.llm.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_new_token=max_new_token)
             except Exception as e:
                 pass
         except Exception as e:

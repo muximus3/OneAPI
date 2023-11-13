@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
-from typing import Optional, Sequence, List
+from typing import List
 import openai
 import anthropic
 from pydantic import BaseModel
@@ -12,46 +12,37 @@ import tiktoken
 import asyncio
 import transformers
 import logging
-from openai.openai_object import OpenAIObject
+from typing import Self
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
-from oneapi.one_api import batch_chat, OneAPITool, compile_jinja_template, render_jinja_template
+from oneapi import OneAPITool, register_client, AbstractClient, AbstractMethod
+class MockClient(AbstractClient):
 
-def print_special_token(tokenizer_hf: transformers.PreTrainedTokenizer):
-    print(f"""tokenizer:\n 
-          vocab_size:{len(tokenizer_hf)},
-          eos:{tokenizer_hf.eos_token},{tokenizer_hf.eos_token_id},
-          bos:{tokenizer_hf.bos_token},{tokenizer_hf.bos_token_id},
-          pad:{tokenizer_hf.pad_token},{tokenizer_hf.pad_token_id},
-          unk:{tokenizer_hf.unk_token},{tokenizer_hf.unk_token_id},
-          mask:{tokenizer_hf.mask_token},{tokenizer_hf.mask_token_id},
-          cls:{tokenizer_hf.cls_token},{tokenizer_hf.cls_token_id},
-          sep:{tokenizer_hf.sep_token},{tokenizer_hf.sep_token_id},
-          all_special:{tokenizer_hf.all_special_tokens},{tokenizer_hf.all_special_ids},
-          """)
+        def __init__(self, method: AbstractMethod) -> None:
+                super().__init__(method)
+                self.method = method
+                self.client = None
+                self.aclient = None
+
+        @classmethod
+        def from_config(cls, config: dict = None, config_file: str = "") -> Self:
+                return cls(AbstractMethod(**config))
+
+        def format_prompt(self, prompt: str | list[str] | list[dict], system: str = ""):
+                pass
+                
+        def chat(self, prompt: str | list[str] | list[dict], system: str = "", **kwargs):
+                return prompt
+        
+        def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+                pass
+
+        
+        def count_tokens(self, texts: List[str], model: str = "") -> int:
+                pass
+register_client("mock", MockClient)
+
+tool = OneAPITool.from_config(api_key="", api_type="claude", api_base="https://api.anthropic.com", api_version="mock")
+print(tool.chat("hello AI"))
 
 
-
-if __name__ == "__main__":
-   config_files = ['../ant/config/huggingface_config_sft_devc.json', '../ant/config/huggingface_config_sft_gpu01.json', '../ant/config/huggingface_config_sft_devb.json', '../ant/config/huggingface_config_sft_devc.json', '../ant/config/huggingface_config_sft_gpu01.json', '../ant/config/huggingface_config_sft_devb.json','../ant/config/huggingface_config_sft_devc.json', '../ant/config/huggingface_config_sft_gpu01.json', '../ant/config/huggingface_config_sft_devb.json', '../ant/config/huggingface_config_sft_devc.json', '../ant/config/huggingface_config_sft_gpu01.json', '../ant/config/huggingface_config_sft_devb.json']   
-   tool = OneAPITool.from_config(api_key="", api_base="http://10.0.0.135:8090", api_type="huggingface")
-
-   msgs =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
-           {"role": "user", "content": "让我们来角色扮演。"}]
-   msgs1 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
-           {"role": "user", "content": "1+1=?"}]
-   msgs2 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
-           {"role": "user", "content": "2+2=?"}]
-   msgs3 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
-           {"role": "user", "content": "3+2=?"}]
-   msgs4 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
-           {"role": "user", "content": "3+4=?"}]
-   msgs5 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
-           {"role": "user", "content": "3+12=?"}]
-   msgs6 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
-           {"role": "user", "content": "13+2=?"}]
-   msgs7 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
-           {"role": "user", "content": "1-1=?"}]
-   msgs8 =  [{"role": "system", "content": "这是一个好奇心很重的问题少年在向你提问。"},
-           {"role": "user", "content": "100-1=?"}]
-   print(asyncio.run(batch_chat(config_files * 1, [msgs, msgs1, msgs2, msgs3, msgs4, msgs5, msgs6, msgs7, msgs8])))
 

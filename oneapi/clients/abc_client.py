@@ -2,16 +2,15 @@ from abc import ABC, abstractmethod
 from pydantic import BaseModel
 from typing import List, Self
 
-class AbstractMethod(BaseModel):
+class AbstractConfig(BaseModel):
     api_key: str
     api_base: str
     api_type: str
 
 class AbstractClient(ABC):
-    LIST_MSG_TEMP = """{% for message in messages %}{% if loop.first %}{% if message['role'] == 'user' %}{% if loop.length != 1 %}{{ '<s>Human:\n' + message['content'] }}{% else %}{{ '<s>Human:\n' + message['content'] + '\n\nAssistant:\n' }}{% endif %}{% elif message['role'] == 'system' %}{{ '<s>System:\n' + message['content'] }}{% endif %}{% elif message['role'] == 'user' %}{% if loop.last %}{{ '\n\nHuman:\n' + message['content'] + '\n\nAssistant:\n'}}{% else %}{{ '\n\nHuman:\n' + message['content']}}{% endif %}{% elif message['role'] == 'assistant' %}{{ '\n\nAssistant:\n' + message['content'] }}{% endif %}{% endfor %}"""
 
-    def __init__(self, method: AbstractMethod) -> None:
-        self.method = method
+    def __init__(self, config: AbstractConfig) -> None:
+        self.config = config
     
     @classmethod
     @abstractmethod

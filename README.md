@@ -4,7 +4,7 @@ LLM calling tool for researchers, which can interact with the language model bas
 
 Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatically save them in a training-specific data format.
 
-**Step 1: Installation (requires Python environment):** `pip install one-api-tool`
+**Step 1: Installation (requires Python environment and python >= 3.11):** `pip install one-api-tool`
 
 **Step 2: Start the command:** `one-api`
 
@@ -12,20 +12,23 @@ Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatic
 
 ![Alt text](/assets/select.png)
 
-**Step 4: Initiate the chat dialogue and edit the conversation:**
+**Step 4: Initiate the chat dialogue and start a conversation:**
 
-![Alt text](/assets/image-1.png)
-- `:clear` to clear the conversation history
-- `:d_clear` to clear the conversation history and system prompt
-- `:undo` to remove the latest message
-- `:save` to save the current session history (the program also saves automatically upon exit)
-- `:load` to load the last conversation from cache file
-- `:system` to set the system prompt
+![Alt text](/assets/chat.png)
+
+**Step 5: Edit the conversation without restart:**
+- `: + clear` to clear the conversation history
+- `: + d_clear` to clear the conversation history and system prompt
+- `: + undo` to remove the latest message
+- `: + save` to save the current session history (the program also saves automatically upon exit)
+- `: + load` to load the last conversation from cache file
+- `: + system` to set the system prompt
+
+![Alt text](/assets/save.png)
 
 
 
-
-The currently supported APIs include:
+#### The currently supported APIs include:
  - [x] OpenAI Official API.
     - [x] ChatGPT: GPT-3.5-turbo/GPT-4.
     - [x] Token number counting.
@@ -45,14 +48,14 @@ The currently supported APIs include:
 
 ## Installation
 
-Requirements Python >=3.10
+Requirements Python >=3.11
 
 ```sh
 pip install -U one-api-tool
 ```
 
 ## Usage
-### 1. Using python.
+### 1. With python.
 
 OpenAI config:
 ```json
@@ -135,8 +138,11 @@ for msg in [conversations_sharegpt_style, conversations_openai_style, conversati
     print(res)
 
 # Pass system message independently
-res = tool.chat("I want to know the weather of tomorrow", system="Now you are a weather forecast assistant.")
+res = tool.chat("Hello AI!", system="Now you are a helpful assistant.")
 print(res)
+
+#Set `vebose=True` to print the detail of args passing to LLMs
+res = tool.chat("Hello AI!", verbose=True) 
 
 # Async chat 
 res = asyncio.run(tool.achat("How\'s the weather today?", model="gpt-4", stream=False))
@@ -163,7 +169,7 @@ configs = [claude_config, openai_config, azure_config]
 prompts = ["How\'s the weather today?", "How\'s the weather today?", "How\'s the weather today?"]
 res = asyncio.run(batch_chat(configs, prompts, stream=False))
 print(res)
-
+```
 <details open> <summary>Output detail</summary>
 
 ```text
@@ -173,33 +179,14 @@ On July 10th, 2022, the weather in New York is expected to be sunny. The tempera
 
 </details>
 
-<details open> <summary>Output detail</summary>
-
-Function response:
-```json
-{
-  "role": "assistant",
-  "content": null,
-  "function_call": {
-    "name": "get_whether_of_city",
-    "arguments": "{\n  \"city\": \"New York\",\n  \"date\": \"2022-07-10\"\n}"
-  }
-}
-```
-Wether_info: 
-```json
-{"city": "New York", "date": "July 10th", "weather": "sunny", "temperature": 30, "air_condition": "good"}
-```
-
-Second response:
-
-```text
-On July 10th, 2022, the weather in New York is expected to be sunny with a temperature of 30 degrees Celsius. The air quality is also good.
-```
-</details>
-
 
 ### 2. Using command line
+#### Interactive
+```sh
+one-api
+```
+
+#### Non-interactive
 
 ```sh
 open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
@@ -247,8 +234,12 @@ Save the prompt and response to local file at directory "~/.cache/history_cache_
 
 ## ToDo
 - [x] Batch requests.
-- [x] OpenAI function_call.
 - [x] Token number counting.
 - [x] Async requests.
 - [x] Custom LLMs.
 - [ ] Custom token budget.
+- [ ] Using tools.
+
+## Architecture
+
+![img](/assets/architecture.png)

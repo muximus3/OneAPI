@@ -15,6 +15,9 @@ logging.basicConfig(
     filemode="a"
 )
 class OneAPITool():
+    LIST_MSG_TEMP_SYSTEM_USER_ASSISTANT = """{% for message in prompt %}{% if loop.first %}{% if message['role'] == 'user' %}{% if loop.length != 1 %}{{ '<s>Human:\n' + message['content'] }}{% else %}{{ '<s>Human:\n' + message['content'] + '\n\nAssistant:\n' }}{% endif %}{% elif message['role'] == 'system' %}{{ '<s>System:\n' + message['content'] }}{% endif %}{% elif message['role'] == 'user' %}{% if loop.last %}{{ '\n\nHuman:\n' + message['content'] + '\n\nAssistant:\n'}}{% else %}{{ '\n\nHuman:\n' + message['content']}}{% endif %}{% elif message['role'] == 'assistant' %}{{ '\n\nAssistant:\n' + message['content'] }}{% endif %}{% endfor %}"""
+    STR_TEMP_SYSTEM_USER_ASSISTANT = """{% if system != '' %}{{'<s>System:\n'+system+'\n\nHuman\n'+prompt+'\n\nAssistant:\n'}}{% else %}{{'<s>Human:\n'+prompt+'\n\nAssistant:\n'}}{% endif %}"""
+
     def __init__(self, client: clients.AbstractClient) -> None:
         self.client = client
 
@@ -32,6 +35,8 @@ class OneAPITool():
         client = client_cls.from_config(dict(api_key=api_key, api_base=api_base, api_type=api_type, api_version=api_version, chat_template=chat_template) | kwargs)
         return cls(client)
 
+    def format_prompt(self, prompt: str | list[str] | list[dict], system: str = ""):
+        return self.client.format_prompt(prompt, system)
 
     def chat(self, prompt: str | list[str] | list[dict], system: str = "", **kwargs):
         response = self.client.chat(prompt , system, **kwargs)

@@ -1,14 +1,15 @@
-from oneapi.clients.abc_client import AbstractClient, AbstractMethod
-from oneapi.clients.claude_client import ClaudeClient, ClaudeMethod, ClaudeDecodingArguments
-from oneapi.clients.hf_client import HuggingfaceClient, HuggingFaceMethod, HuggingFaceDecodingArguments
-from oneapi.clients.vllm_client import VLLMClient, VLLMMethod, VLLMDecodingArguments
-from oneapi.clients.openai_client import OpenAIClient, OpenAIMethod, OpenAIDecodingArguments, AzureMethod, AzureDecodingArguments
+from oneapi.clients.abc_client import AbstractClient, AbstractConfig
+from oneapi.clients.anthropic_client import AnthropicClient, AnthropicConfig, AnthropicDecodingArguments
+from oneapi.clients.hf_client import HuggingfaceClient, HuggingFaceConfig, HuggingFaceDecodingArguments
+from oneapi.clients.vllm_client import VLLMClient, VLLMConfig, VLLMDecodingArguments
+from oneapi.clients.openai_client import OpenAIClient, OpenAIConfig, OpenAIDecodingArguments, AzureConfig, AzureDecodingArguments
 
 clients_register = {
-    "claude": ClaudeClient,
+    "claude": AnthropicClient,
+    "anthropic": AnthropicClient,
     "openai": OpenAIClient,
     "open_ai": OpenAIClient,
     "azure": OpenAIClient,
     "huggingface": HuggingfaceClient,
     "vllm": VLLMClient
-}
+    }

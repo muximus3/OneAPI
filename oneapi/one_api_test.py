@@ -14,10 +14,10 @@ import transformers
 import logging
 from typing import Self
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
-from oneapi import OneAPITool, register_client, AbstractClient, AbstractMethod
+from oneapi import OneAPITool, register_client, AbstractClient, AbstractConfig
 class MockClient(AbstractClient):
 
-        def __init__(self, method: AbstractMethod) -> None:
+        def __init__(self, method: AbstractConfig) -> None:
                 super().__init__(method)
                 self.method = method
                 self.client = None
@@ -25,7 +25,7 @@ class MockClient(AbstractClient):
 
         @classmethod
         def from_config(cls, config: dict = None, config_file: str = "") -> Self:
-                return cls(AbstractMethod(**config))
+                return cls(AbstractConfig(**config))
 
         def format_prompt(self, prompt: str | list[str] | list[dict], system: str = ""):
                 pass

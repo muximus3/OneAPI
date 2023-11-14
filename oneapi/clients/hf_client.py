@@ -1,14 +1,14 @@
 from huggingface_hub import InferenceClient, AsyncInferenceClient
-from typing import Optional, List
+from typing import Optional, List, Self
 from pydantic import BaseModel
 import os
 import json
 import sys
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/../.."))
 from oneapi.utils import compile_jinja_template
-from oneapi.clients.abc_client import AbstractMethod, AbstractClient
+from oneapi.clients.abc_client import AbstractConfig, AbstractClient
 
-class HuggingFaceMethod(AbstractMethod):
+class HuggingFaceConfig(AbstractConfig):
     api_key: str = ""
     api_base: str
     api_type: str = "huggingface"
@@ -30,23 +30,23 @@ class HuggingFaceDecodingArguments(BaseModel):
 
 class HuggingfaceClient(AbstractClient):
 
-    def __init__(self, method : HuggingFaceMethod) -> None:
-        super().__init__(method)
-        self.method = method
+    def __init__(self, config : HuggingFaceConfig) -> None:
+        super().__init__(config)
+        self.config = config
         self.huggingface_client = None
         self.async_huggingface_client = None
     
     @classmethod
-    def from_config(cls, config: dict=None, config_file: str=""):
+    def from_config(cls, config: dict=None, config_file: str="") -> Self:
         if isinstance(config_file, str) and os.path.isfile(config_file):
             with open(config_file, "r") as f:
                 config = json.load(f)
         if not config:
             raise ValueError("config is empty, pass a config file or a config dict")
-        return cls(HuggingFaceMethod(**config))
+        return cls(HuggingFaceConfig(**config))
 
     def format_prompt(self, prompt: str|list[str]|list[dict], system: str = "") -> str:
-        template = compile_jinja_template(self.method.chat_template)
+        template = compile_jinja_template(self.config.chat_template)
         return template.render(prompt=prompt, system=system)
 
     def chat_stream(self, resp):
@@ -60,7 +60,7 @@ class HuggingfaceClient(AbstractClient):
         if "verbose" in kwargs and kwargs["verbose"]:
             print(f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")
         if self.huggingface_client is None:
-            self.huggingface_client = InferenceClient(self.method.api_base)
+            self.huggingface_client = InferenceClient(self.config.api_base)
         resp = self.huggingface_client.text_generation(**args.model_dump(), details=True)
         if args.stream:
             return self.chat_stream(resp)
@@ -72,7 +72,7 @@ class HuggingfaceClient(AbstractClient):
         if "verbose" in kwargs and kwargs["verbose"]:
             print(f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")
         if self.async_huggingface_client is None:
-            self.async_huggingface_client = AsyncInferenceClient(self.method.api_base)
+            self.async_huggingface_client = AsyncInferenceClient(self.config.api_base)
         resp = await self.async_huggingface_client.text_generation(**args.model_dump(), details=True)
         if args.stream:
             full_comp = ""

@@ -30,9 +30,11 @@ class OneAPITool():
         return cls(client)
 
     @classmethod
-    def from_config(cls, api_key, api_base, api_type, api_version="2023-07-01-preview", chat_template="", **kwargs):
+    def from_config(cls, api_key="", api_base="", api_type="", api_version="2023-07-01-preview", chat_template="", **kwargs):
         client_cls = clients.clients_register.get(api_type)
-        client = client_cls.from_config(dict(api_key=api_key, api_base=api_base, api_type=api_type, api_version=api_version, chat_template=chat_template) | kwargs)
+        config = dict(api_key=api_key, api_base=api_base, api_type=api_type, api_version=api_version, chat_template=chat_template)
+        config = {k: v for k, v in config.items() if v}
+        client = client_cls.from_config( config | kwargs)
         return cls(client)
 
     def format_prompt(self, prompt: str | list[str] | list[dict], system: str = ""):

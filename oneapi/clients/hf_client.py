@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import os
 import json
 import sys
+from urllib.parse import urlparse
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/../.."))
 from oneapi.utils import compile_jinja_template
 from oneapi.clients.abc_client import AbstractConfig, AbstractClient
@@ -43,6 +44,14 @@ class HuggingfaceClient(AbstractClient):
                 config = json.load(f)
         if not config:
             raise ValueError("config is empty, pass a config file or a config dict")
+        # remove path from url
+        url_base = config.get("api_base", "")
+        if url_base:
+            parse_result = urlparse(url_base)
+            if parse_result.scheme and parse_result.netloc:
+                config["api_base"] = f"{parse_result.scheme}://{parse_result.netloc}"
+        if not config.get('chat_template'):
+            config.pop('chat_template')
         return cls(HuggingFaceConfig(**config))
 
     def format_prompt(self, prompt: str|list[str]|list[dict], system: str = "") -> str:

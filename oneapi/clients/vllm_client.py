@@ -6,6 +6,7 @@ import requests
 import aiohttp
 from pydantic import BaseModel
 from typing import Optional, List, Union, Dict, Self
+from urllib.parse import urljoin
 import os
 import sys
 sys.path.append(os.path.normpath(
@@ -63,6 +64,11 @@ class VLLMClient(AbstractClient):
         if not config:
             raise ValueError(
                 "config is empty, pass a config file or a config dict")
+        # add path to url
+        if 'generate' not in config['api_base']:
+            config['api_base'] = urljoin(config['api_base'], 'generate')
+        if not config.get('chat_template'):
+            config.pop('chat_template')
         return cls(VLLMConfig(**config))
 
     def format_prompt(self, prompt: str | list[str] | list[dict], system: str = "") -> str:

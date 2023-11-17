@@ -7,7 +7,7 @@ import json
 
 class AnthropicConfig(AbstractConfig):
     api_key: str
-    api_base: str = "https://api.anthropic.com",
+    api_base: str = "https://api.anthropic.com"
     api_type: str = "anthropic"
 
 

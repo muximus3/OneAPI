@@ -41,10 +41,14 @@ class OneAPITool():
         return self.client.format_prompt(prompt, system)
 
     def chat(self, prompt: str | list[str] | list[dict], system: str = "", **kwargs):
+        # dont overwrite default values
+        kwargs = {k: v for k, v in kwargs.items() if v}
         response = self.client.chat(prompt , system, **kwargs)
         return response
 
     async def achat(self, prompt: str | list[str] | list[dict], system: str = "", **kwargs):
+        # dont overwrite default values
+        kwargs = {k: v for k, v in kwargs.items() if v}
         response = await self.client.achat(prompt, system, **kwargs)
         return response
 
@@ -71,27 +75,26 @@ async def bound_fetch(sem, pbar, tool: OneAPITool, prompt: str, model: str, **kw
             return None
 
 
-async def batch_chat(api_configs, texts, engines=None, request_interval=1, process_num=1, **kwargs):
+async def batch_chat(api_configs, texts, engines=None, request_interval=0.1, max_process_num=1, **kwargs):
     if isinstance(api_configs[0], str):
         tools = [OneAPITool.from_config_file(
             config_file) for config_file in api_configs]
     else:
-        tools = [OneAPITool.from_config(api_key=config.get('api_key'), api_base=config.get('api_base'), api_type=config.get(
-            'api_type'), api_version=config.get('api_version'), chat_template=config.get('chat_template')) for config in api_configs]
-    process_num = max(len(api_configs), process_num)
-    engines = engines if engines is not None else [''] * process_num
+        tools = [OneAPITool.from_config(**config) for config in api_configs]
+    max_process_num = max(len(api_configs), max_process_num)
+    engines = engines if engines is not None else [''] * max_process_num
     if engines is not None and len(engines) == 1:
-        engines = engines * process_num
+        engines = engines * max_process_num
     if engines is not None and len(engines) > 1:
         assert len(
-            engines) == process_num, f'Number of engines must be equal to number of api config files when specific multiple engines, but got {len(engines)} engines and {process_num} api config files.'
+            engines) == max_process_num, f'Number of engines must be equal to number of api config files when specific multiple engines, but got {len(engines)} engines and {max_process_num} api config files.'
 
-    sem = asyncio.Semaphore(process_num)
+    sem = asyncio.Semaphore(max_process_num)
     pbar = tqdm(total=len(texts))
-    tasks = [asyncio.ensure_future(bound_fetch(sem, pbar, tools[i % process_num], prompt=prompt,
-                                   model=engines[i % process_num], **kwargs))for i, prompt in enumerate(texts)]
-    task_batches = [tasks[i:i+process_num]
-                    for i in range(0, len(tasks), process_num)]
+    tasks = [asyncio.ensure_future(bound_fetch(sem, pbar, tools[i % max_process_num], prompt=prompt,
+                                   model=engines[i % max_process_num], **kwargs))for i, prompt in enumerate(texts)]
+    task_batches = [tasks[i:i+max_process_num]
+                    for i in range(0, len(tasks), max_process_num)]
     results = []
     async with aiohttp.ClientSession() as session:
         for batch in task_batches:

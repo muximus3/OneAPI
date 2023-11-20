@@ -65,6 +65,9 @@ class HuggingfaceClient(AbstractClient):
             yield data.token.text
 
     def chat(self, prompt: str | list[str] | list[dict], system: str = "",  max_new_tokens: int = 1024, **kwargs):
+        # OpenAI use 'stop'
+        if 'stop' in kwargs and kwargs['stop']:
+            kwargs['stop_sequences'] = kwargs.pop('stop')
         args = HuggingFaceDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_new_tokens=max_new_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")
@@ -77,6 +80,9 @@ class HuggingfaceClient(AbstractClient):
             return resp.generated_text
     
     async def achat(self, prompt: str | list[str] | list[dict], system: str = "",  max_new_tokens: int = 1024, **kwargs):
+        # OpenAI use 'stop'
+        if 'stop' in kwargs and kwargs['stop']:
+            kwargs['stop_sequences'] = kwargs.pop('stop')
         args = HuggingFaceDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_new_tokens=max_new_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")

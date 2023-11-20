@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="one-api-tool",
-    version="1.2.3",
+    version="1.2.4",
     packages=find_packages(),
     install_requires=[
         # Add your library's dependencies here

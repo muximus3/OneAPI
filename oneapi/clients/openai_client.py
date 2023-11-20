@@ -35,7 +35,7 @@ class OpenAIConfig(AbstractConfig):
 
 class OpenAIDecodingArguments(BaseModel):
     messages: List[dict]
-    model: str = "gpt-4-turbo"
+    model: str = "gpt-4"
     max_tokens: int = 2048
     temperature: float = 1
     tools: Optional[list] = None
@@ -53,7 +53,7 @@ class OpenAIDecodingArguments(BaseModel):
 class AzureDecodingArguments(BaseModel):
     messages: List[dict]
     # The deployment name you chose when you deployed the ChatGPT or GPT-4 model
-    model: str = "gpt-35-turbo"
+    model: str = "gpt-4"
     max_tokens: int = 2048
     temperature: float = 1
     top_p: float = 1

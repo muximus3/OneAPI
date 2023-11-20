@@ -69,6 +69,9 @@ class AnthropicClient(AbstractClient):
             yield data.completion
 
     def chat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+        # OpenAI use 'stop'
+        if 'stop' in kwargs and kwargs['stop']:
+            kwargs['stop_sequences'] = kwargs.pop('stop')
         args = AnthropicDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_tokens_to_sample=max_new_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")
@@ -79,6 +82,9 @@ class AnthropicClient(AbstractClient):
             return resp.completion
                 
     async def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+        # OpenAI use 'stop'
+        if 'stop' in kwargs and kwargs['stop']:
+            kwargs['stop_sequences'] = kwargs.pop('stop')
         args = AnthropicDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_tokens_to_sample=max_new_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")

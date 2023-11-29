@@ -84,9 +84,9 @@ class VLLMClient(AbstractClient):
                 output = data["text"][0]
                 yield output
 
-    def chat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+    def chat(self, prompt: str | list[str] | list[dict], system: str = "", max_tokens: int = 1024, **kwargs):
         args = VLLMDecodingArguments(prompt=self.format_prompt(
-            prompt=prompt, system=system), max_tokens=max_new_tokens, **kwargs)
+            prompt=prompt, system=system), max_tokens=max_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
                 f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")
@@ -97,9 +97,9 @@ class VLLMClient(AbstractClient):
         else:
             return response.json()["text"][0]
 
-    async def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+    async def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_tokens: int = 1024, **kwargs):
         args = VLLMDecodingArguments(prompt=self.format_prompt(
-            prompt=prompt, system=system), max_tokens=max_new_tokens, **kwargs)
+            prompt=prompt, system=system), max_tokens=max_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
                 f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")

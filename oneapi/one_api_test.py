@@ -33,7 +33,7 @@ class MockClient(AbstractClient):
         def chat(self, prompt: str | list[str] | list[dict], system: str = "", **kwargs):
                 return prompt
         
-        def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+        def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_tokens: int = 1024, **kwargs):
                 pass
 
         

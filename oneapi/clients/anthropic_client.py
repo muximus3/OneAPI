@@ -1,4 +1,4 @@
-from typing import List, Optional, Sequence, Self
+from typing import Any, List, Optional, Sequence, Self
 from pydantic import BaseModel
 from oneapi.clients.abc_client import AbstractConfig, AbstractClient
 import anthropic
@@ -13,7 +13,7 @@ class AnthropicConfig(AbstractConfig):
 
 class AnthropicDecodingArguments(BaseModel):
     prompt: str
-    model: str = "claude-2"
+    model: str = "claude-2.1"
     max_tokens_to_sample: int = 2048
     temperature: float = 1
     top_p: float = -1
@@ -68,11 +68,11 @@ class AnthropicClient(AbstractClient):
                 break
             yield data.completion
 
-    def chat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+    def chat(self, prompt: str | list[str] | list[dict], system: str = "", max_tokens: int = 1024, **kwargs):
         # OpenAI use 'stop'
         if 'stop' in kwargs and kwargs['stop']:
             kwargs['stop_sequences'] = kwargs.pop('stop')
-        args = AnthropicDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_tokens_to_sample=max_new_tokens, **kwargs)
+        args = AnthropicDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_tokens_to_sample=max_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")
         resp = self.client.completions.create(**args.model_dump())
@@ -81,11 +81,11 @@ class AnthropicClient(AbstractClient):
         else:
             return resp.completion
                 
-    async def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+    async def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_tokens: int = 1024, **kwargs):
         # OpenAI use 'stop'
         if 'stop' in kwargs and kwargs['stop']:
             kwargs['stop_sequences'] = kwargs.pop('stop')
-        args = AnthropicDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_tokens_to_sample=max_new_tokens, **kwargs)
+        args = AnthropicDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_tokens_to_sample=max_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")
         resp = await self.aclient.completions.create(**args.model_dump())

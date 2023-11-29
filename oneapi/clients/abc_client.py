@@ -1,16 +1,19 @@
 from abc import ABC, abstractmethod
 from pydantic import BaseModel
-from typing import List, Self
+from typing import Any, List, Self, Optional
 
 class AbstractConfig(BaseModel):
-    api_key: str
-    api_base: str
-    api_type: str
+    api_key: Optional[str] = ""
+    api_base: Optional[str] = ""
+    api_type: Optional[str] = ""
 
 class AbstractClient(ABC):
 
     def __init__(self, config: AbstractConfig) -> None:
         self.config = config
+    
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        return self.chat(*args, **kwds)
     
     @classmethod
     @abstractmethod
@@ -27,7 +30,7 @@ class AbstractClient(ABC):
         raise NotImplementedError
         
     @abstractmethod
-    async def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+    async def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_tokens: int = 1024, **kwargs):
         raise NotImplementedError
     
     

@@ -62,7 +62,7 @@ OpenAI config:
 {
     "api_key": "YOUR_API_KEY",
     "api_base": "https://api.openai.com/v1",
-    "api_type": "open_ai"
+    "api_type": "openai"
 }
 ```
 Azure OpenAI config:
@@ -79,7 +79,7 @@ Anthropic config:
 {
     "api_key": "YOUR_API_KEY",
     "api_base": "https://api.anthropic.com",
-    "api_type": "claude"
+    "api_type": "anthropic"
 }
 ```
 Huggingface config:
@@ -109,7 +109,7 @@ VLLM config:
 
 If you are using Azure APIs, you can find relevant information on the Azure resource dashboard. The API format typically follows this pattern: `https://{your_organization}.openai.azure.com/`.
 
-`api_type`: Currently supported values are "open_ai", "azure", or "claude".
+`api_type`: Currently supported values are "open_ai", "azure", or "anthropic".
 
 `api_version`: This field is optional. Azure provides several versions of APIs, such as "2023-03-15-preview". However, the OpenAI SDK always has a default value set for this field. Therefore, you should only specify a specific value if you want to use that particular version of APIs.
 
@@ -121,11 +121,11 @@ If you are using Azure APIs, you can find relevant information on the Azure reso
 - string
 - list of string
 ```python
-from oneapi import OneAPITool
+from oneapi import OneLLM
 import asyncio
 # Two ways to initialize the OneAPITool object  
-# tool = OneAPITool.from_config(api_key, api_base, api_type)
-tool = OneAPITool.from_config_file("your_config_file.json")
+# llm = OneAPITool.from_config(api_key=api_key, api_base=api_base, api_type=api_type)
+llm = OneLLM.from_config("your_config_file.json")
 
 # There are three acceptable types of inputs.
 conversations_openai_style = [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "Hello, how can i assistant you today?"}, {"role": "user", "content": "I want to know the weather of tomorrow"}]
@@ -134,26 +134,26 @@ string_message = "Hello AI!"
 list_of_string_messages = ["Hello AI!", "Hello, how can i assistant you today?", "I want to know the weather of tomorrow"]
 
 for msg in [conversations_sharegpt_style, conversations_openai_style, conversation_with_system_msg, string_message, list_of_string_messages]:
-    res = tool.chat(msg)
+    res = llm(msg)
     print(res)
 
 # Pass system message independently
-res = tool.chat("Hello AI!", system="Now you are a helpful assistant.")
+res = llm("Hello AI!", system="Now you are a helpful assistant.")
 print(res)
 
 #Set `vebose=True` to print the detail of args passing to LLMs
-res = tool.chat("Hello AI!", verbose=True) 
+res = llm("Hello AI!", verbose=True) 
 
 # Async chat 
-res = asyncio.run(tool.achat("How\'s the weather today?", model="gpt-4", stream=False))
+res = asyncio.run(llm.achat("How\'s the weather today?", model="gpt-4", stream=False))
 print(res)
 
 # Get embeddings of some sentences for further usage, e.g., clustering
-embeddings = tool.get_embeddings(["Hello AI!", "Hello world!"])
+embeddings = llm.get_embeddings(["Hello AI!", "Hello world!"])
 print(len(embeddings))
 
 # Count the number of tokens
-print(tool.count_tokens(["Hello AI!", "Hello world!"]))
+print(llm.count_tokens(["Hello AI!", "Hello world!"]))
 ```
 **Note: Currently, `get_embeddings` only support OpenAI or Microsoft Azure API.**
 ### Batch request with asyncio
@@ -161,11 +161,11 @@ print(tool.count_tokens(["Hello AI!", "Hello world!"]))
 from oneapi.one_api import batch_chat
 import asyncio
 
-claude_config = "anthropic_config.json"
+anthropic_config = "anthropic_config.json"
 openai_config = "openapi_config.json"
 azure_config = "openapi_azure_config.json"
 # The coccurent number of requests would be 3, which is the same as the length of the configs list.
-configs = [claude_config, openai_config, azure_config]
+configs = [anthropic_config, openai_config, azure_config]
 prompts = ["How\'s the weather today?", "How\'s the weather today?", "How\'s the weather today?"]
 res = asyncio.run(batch_chat(configs, prompts, stream=False))
 print(res)
@@ -225,7 +225,7 @@ The question that would be predicted by LLMs, e.g., A math question would be lik
 
 `--temperature` int ${\color{grey}\text{Optional}}$ Defaults to 1 <br>What sampling temperature to use.  Higher values like 0.9 will make the output more random, while lower values like 0.1 will make it more focused and deterministic. 
 
-`--max_new_tokens` int ${\color{grey}\text{Optional}}$ Defaults to 2048 <br>
+`--max_tokens` int ${\color{grey}\text{Optional}}$ Defaults to 2048 <br>
 The maximum number of tokens to generate in the chat completion.
 The total length of input tokens and generated tokens is limited by the model's context length.
 

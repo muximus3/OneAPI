@@ -1,5 +1,5 @@
 from huggingface_hub import InferenceClient, AsyncInferenceClient
-from typing import Optional, List, Self
+from typing import Any, Optional, List, Self
 from pydantic import BaseModel
 import os
 import json
@@ -38,7 +38,7 @@ class HuggingfaceClient(AbstractClient):
         self.async_huggingface_client = None
     
     @classmethod
-    def from_config(cls, config: dict=None, config_file: str="") -> Self:
+    def from_config(cls, config: dict = None, config_file: str = "") -> Self:
         if isinstance(config_file, str) and os.path.isfile(config_file):
             with open(config_file, "r") as f:
                 config = json.load(f)
@@ -64,11 +64,11 @@ class HuggingfaceClient(AbstractClient):
                 break
             yield data.token.text
 
-    def chat(self, prompt: str | list[str] | list[dict], system: str = "",  max_new_tokens: int = 1024, **kwargs):
+    def chat(self, prompt: str | list[str] | list[dict], system: str = "",  max_tokens: int = 1024, **kwargs):
         # OpenAI use 'stop'
         if 'stop' in kwargs and kwargs['stop']:
             kwargs['stop_sequences'] = kwargs.pop('stop')
-        args = HuggingFaceDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_new_tokens=max_new_tokens, **kwargs)
+        args = HuggingFaceDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_new_tokens=max_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")
         if self.huggingface_client is None:
@@ -79,11 +79,11 @@ class HuggingfaceClient(AbstractClient):
         else:
             return resp.generated_text
     
-    async def achat(self, prompt: str | list[str] | list[dict], system: str = "",  max_new_tokens: int = 1024, **kwargs):
+    async def achat(self, prompt: str | list[str] | list[dict], system: str = "",  max_tokens: int = 1024, **kwargs):
         # OpenAI use 'stop'
         if 'stop' in kwargs and kwargs['stop']:
             kwargs['stop_sequences'] = kwargs.pop('stop')
-        args = HuggingFaceDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_new_tokens=max_new_tokens, **kwargs)
+        args = HuggingFaceDecodingArguments(prompt=self.format_prompt(prompt=prompt, system=system), max_new_tokens=max_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")
         if self.async_huggingface_client is None:

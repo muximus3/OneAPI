@@ -1,4 +1,4 @@
-from typing import List, Optional, Sequence, Self
+from typing import Any, List, Optional, Sequence, Self
 from pydantic import BaseModel
 import tiktoken
 import json
@@ -32,13 +32,13 @@ class OpenAIConfig(AbstractConfig):
     method_commpletions: str = "completions"
     chat_template: str = ""
 
-
 class OpenAIDecodingArguments(BaseModel):
     messages: List[dict]
     model: str = "gpt-4"
     max_tokens: int = 2048
     temperature: float = 1
     tools: Optional[list] = None
+    seed: Optional[int] = None
     tool_choice: Optional[str | object] = None
     response_format: dict = None
     top_p: float = 1
@@ -56,6 +56,7 @@ class AzureDecodingArguments(BaseModel):
     model: str = "gpt-4"
     max_tokens: int = 2048
     temperature: float = 1
+    seed: Optional[int] = None
     top_p: float = 1
     n: int = 1
     stream: bool = False
@@ -66,20 +67,6 @@ class AzureDecodingArguments(BaseModel):
 
 
 class OpenAIClient(AbstractClient):
-
-    @classmethod
-    def from_config(cls, config: dict = None, config_file: str = "") -> Self:
-        if isinstance(config_file, str) and os.path.isfile(config_file):
-            with open(config_file, "r") as f:
-                config = json.load(f)
-        if not config:
-            raise ValueError(
-                "config is empty, pass a config file or a config dict")
-        if config['api_type'] == "azure":
-            config = AzureConfig(**config)
-        else:
-            config = OpenAIConfig(**config)
-        return cls(config)
 
     def __init__(self, config: AbstractConfig) -> None:
         super().__init__(config)
@@ -95,6 +82,20 @@ class OpenAIClient(AbstractClient):
                 api_key=config.api_key, azure_endpoint=config.api_base, api_version=config.api_version)
             self.aclient = AsyncAzureOpenAI(
                 api_key=config.api_key, azure_endpoint=config.api_base, api_version=config.api_version)
+
+    @classmethod
+    def from_config(cls, config: dict = None, config_file: str = "") -> Self:
+        if isinstance(config_file, str) and os.path.isfile(config_file):
+            with open(config_file, "r") as f:
+                config = json.load(f)
+        if not config:
+            raise ValueError(
+                "config is empty, pass a config file or a config dict")
+        if config['api_type'] == "azure":
+            config = AzureConfig(**config)
+        else:
+            config = OpenAIConfig(**config)
+        return cls(config)
 
     def format_prompt(self, prompt: str | list[str] | list[dict], system: str = "") -> List[dict]:
         msgs = [] if not system else [dict(role="system", content=system)]
@@ -122,17 +123,17 @@ class OpenAIClient(AbstractClient):
             if chunk_message.content is not None:
                 yield chunk_message.content
 
-    def chat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+    def chat(self, prompt: str | list[str] | list[dict], system: str = "", max_tokens: int = 1024, **kwargs):
         """
         https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/chatgpt?pivots=programming-language-chat-completions
         https://platform.openai.com/docs/api-reference/chat
         """
         if isinstance(self.config, AzureConfig):
             args = AzureDecodingArguments(messages=self.format_prompt(
-                prompt=prompt, system=system), max_tokens=max_new_tokens, **kwargs)
+                prompt=prompt, system=system), max_tokens=max_tokens, **kwargs)
         else:
             args = OpenAIDecodingArguments(messages=self.format_prompt(
-                prompt=prompt, system=system), max_tokens=max_new_tokens, **kwargs)
+                prompt=prompt, system=system), max_tokens=max_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
                 f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")
@@ -144,13 +145,13 @@ class OpenAIClient(AbstractClient):
             response_message = completion.choices[0].message
             return response_message.content
 
-    async def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_new_tokens: int = 1024, **kwargs):
+    async def achat(self, prompt: str | list[str] | list[dict], system: str = "", max_tokens: int = 1024, **kwargs):
         if isinstance(self.config, AzureConfig):
             args = AzureDecodingArguments(messages=self.format_prompt(
-                prompt=prompt, system=system), max_tokens=max_new_tokens, **kwargs)
+                prompt=prompt, system=system), max_tokens=max_tokens, **kwargs)
         else:
             args = OpenAIDecodingArguments(messages=self.format_prompt(
-                prompt=prompt, system=system), max_tokens=max_new_tokens, **kwargs)
+                prompt=prompt, system=system), max_tokens=max_tokens, **kwargs)
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
                 f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}")

@@ -205,14 +205,14 @@ class ChatAgent:
             if self.model.startswith('claude'):
                 max_new_token = 80000 - token_counts
             elif self.model.startswith('gpt-4'):
-                max_new_token = 8000 - token_counts
+                max_new_token = 4096 - token_counts
             elif self.model.startswith('gpt-3'):
                 max_new_token = 4000 - token_counts
         try:
             # print(self.system_message)
             # print(Markdown(json.dumps(self.messages, indent=2, ensure_ascii=False)))
             # print(self.tool._preprocess_claude_prompt(self.messages))
-            response = self.llm.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_new_tokens=max_new_token)
+            response = self.llm.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_tokens=max_new_token)
         except RateLimitError as e:
             print(Markdown(f"> We hit a rate limit. Cooling off for {attempts} seconds..."))
             time.sleep(attempts)

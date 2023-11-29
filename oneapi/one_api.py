@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import logging
 import asyncio
-import aiohttp
 import time
-from typing import List
+from typing import Any, List
 from tqdm import tqdm
 from oneapi.utils import load_json
-from  oneapi import clients
+from oneapi import clients
+import os
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.WARN,
@@ -14,6 +14,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     filemode="a"
 )
+
+
 class OneAPITool():
     LIST_MSG_TEMP_SYSTEM_USER_ASSISTANT = """{% for message in prompt %}{% if loop.first %}{% if message['role'] == 'user' %}{% if loop.length != 1 %}{{ '<s>Human:\n' + message['content'] }}{% else %}{{ '<s>Human:\n' + message['content'] + '\n\nAssistant:\n' }}{% endif %}{% elif message['role'] == 'system' %}{{ '<s>System:\n' + message['content'] }}{% endif %}{% elif message['role'] == 'user' %}{% if loop.last %}{{ '\n\nHuman:\n' + message['content'] + '\n\nAssistant:\n'}}{% else %}{{ '\n\nHuman:\n' + message['content']}}{% endif %}{% elif message['role'] == 'assistant' %}{{ '\n\nAssistant:\n' + message['content'] }}{% endif %}{% endfor %}"""
     STR_TEMP_SYSTEM_USER_ASSISTANT = """{% if system != '' %}{{'<s>System:\n'+system+'\n\nHuman\n'+prompt+'\n\nAssistant:\n'}}{% else %}{{'<s>Human:\n'+prompt+'\n\nAssistant:\n'}}{% endif %}"""
@@ -21,29 +23,42 @@ class OneAPITool():
     def __init__(self, client: clients.AbstractClient) -> None:
         self.client = client
 
-    @classmethod
-    def from_config_file(cls, config_file):
-        config = load_json(config_file)
-        api_type = config.get("api_type")
-        client_cls = clients.clients_register.get(api_type)
-        client = client_cls.from_config(config)
-        return cls(client)
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        return self.client(*args, **kwds)
 
     @classmethod
-    def from_config(cls, api_key="", api_base="", api_type="", api_version="2023-07-01-preview", chat_template="", **kwargs):
-        client_cls = clients.clients_register.get(api_type)
-        config = dict(api_key=api_key, api_base=api_base, api_type=api_type, api_version=api_version, chat_template=chat_template)
-        config = {k: v for k, v in config.items() if v}
-        client = client_cls.from_config( config | kwargs)
+    def from_config(
+        cls,
+        config_file: str = "",
+        api_key: str = "",
+        api_base: str = "",
+        api_type: str = "", 
+        api_version: str = "2023-07-01-preview", 
+        chat_template: str = "", 
+        **kwargs
+    ):
+        if config_file and os.path.isfile(config_file):
+                config = load_json(config_file)
+                api_type = config.get("api_type")
+                client_cls = clients.clients_register.get(api_type)
+        else: 
+            client_cls = clients.clients_register.get(api_type)
+            config = dict(api_key=api_key, api_base=api_base, api_type=api_type,
+                        api_version=api_version, chat_template=chat_template)
+            config = {k: v for k, v in config.items() if v}
+        client = client_cls.from_config(config | kwargs)
         return cls(client)
 
     def format_prompt(self, prompt: str | list[str] | list[dict], system: str = ""):
         return self.client.format_prompt(prompt, system)
 
-    def chat(self, prompt: str | list[str] | list[dict], system: str = "", **kwargs):
-        # dont overwrite default values
+    def chat(self, prompt: str | list[str] | list[dict], system: str = "", max_tokens: int = 512, stop: List[str] = None, **kwargs):
+        # dont use empty value to overwrite default values
         kwargs = {k: v for k, v in kwargs.items() if v}
-        response = self.client.chat(prompt , system, **kwargs)
+        if stop:
+            kwargs["stop"] = stop
+        response = self.client.chat(
+            prompt, system, max_tokens=max_tokens, **kwargs)
         return response
 
     async def achat(self, prompt: str | list[str] | list[dict], system: str = "", **kwargs):
@@ -58,7 +73,7 @@ class OneAPITool():
     def get_embedding(self, text: str, model="text-embedding-ada-002") -> List[float]:
         return self.client.get_embedding(text, model)
 
-    def count_tokens(self, texts: List[str], model: str = 'gpt-4') -> int:
+    def count_tokens(self, texts: List[str], model: str = "gpt-4") -> int:
         assert isinstance(
             texts, list), f"Input texts must be a list of strings. Got {type(texts)} instead."
         return self.client.count_tokens(texts, model)
@@ -77,7 +92,7 @@ async def bound_fetch(sem, pbar, tool: OneAPITool, prompt: str, model: str, **kw
 
 async def batch_chat(api_configs, texts, engines=None, request_interval=0.1, max_process_num=1, **kwargs):
     if isinstance(api_configs[0], str):
-        tools = [OneAPITool.from_config_file(
+        tools = [OneAPITool.from_config(
             config_file) for config_file in api_configs]
     else:
         tools = [OneAPITool.from_config(**config) for config in api_configs]
@@ -90,15 +105,14 @@ async def batch_chat(api_configs, texts, engines=None, request_interval=0.1, max
             engines) == max_process_num, f'Number of engines must be equal to number of api config files when specific multiple engines, but got {len(engines)} engines and {max_process_num} api config files.'
 
     sem = asyncio.Semaphore(max_process_num)
-    pbar = tqdm(total=len(texts))
+    pbar = tqdm(total=len(texts), desc=f'Batch requests')
     tasks = [asyncio.ensure_future(bound_fetch(sem, pbar, tools[i % max_process_num], prompt=prompt,
                                    model=engines[i % max_process_num], **kwargs))for i, prompt in enumerate(texts)]
     task_batches = [tasks[i:i+max_process_num]
                     for i in range(0, len(tasks), max_process_num)]
     results = []
-    async with aiohttp.ClientSession() as session:
-        for batch in task_batches:
-            batch_result = await asyncio.gather(*batch)
-            results.extend(batch_result)
-            time.sleep(request_interval)
+    for batch in task_batches:
+        batch_result = await asyncio.gather(*batch)
+        results.extend(batch_result)
+        time.sleep(request_interval)
     return results

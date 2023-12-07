@@ -214,10 +214,10 @@ def main():
             pass
 
         if f"{key_word}_API_KEY" in os.environ:
-            api_key = os.environ.get(f"{key_word}_API_KEY")
-            api_base = os.environ.get(f"{key_word}_API_BASE")
-            api_version = os.environ.get(f"{key_word}_API_VERSION")
-            model = os.environ.get(f"{key_word}_MODEL")
+            api_key = os.environ.get(f"{key_word}_API_KEY", "")
+            api_base = os.environ.get(f"{key_word}_API_BASE", "")
+            api_version = os.environ.get(f"{key_word}_API_VERSION", "")
+            model = os.environ.get(f"{key_word}_MODEL", "")
             chat_template = os.environ.get(f"{key_word}_CHAT_TEMPELATE")
             if api_base.strip() == "":
                 api_base = default_url
@@ -227,21 +227,16 @@ def main():
         else:
             if api_type in ["huggingface", "vllm"]:
                 if api_type == "huggingface":
-                    questions = [
-                        inquirer.Text(
-                            "api_base",
-                            message="Enter the model id hosted on the Hugging Face Hub, e.g. `bigcode/starcoder` or a URL to a deployed Inference Endpoint, e.g. `http://localhost:8080`",
-                            validate=lambda _, c: len(c) > 0,
-                        )
-                    ]
+                    prompt_msg = "Enter the model id hosted on the Hugging Face Hub, e.g. `bigcode/starcoder` or a URL to a deployed Inference Endpoint, e.g. `http://localhost:8080`"
                 else:
-                    questions = [
-                        inquirer.Text(
-                            "api_base",
-                            message="Enter the URL hosted by VLLM, e.g. `http://localhost:8000/generate`",
-                            validate=lambda _, c: len(c) > 0,
-                        )
-                    ]
+                    prompt_msg = "Enter the URL hosted by VLLM, e.g. `http://localhost:8000/generate`"
+                questions = [
+                    inquirer.Text(
+                        "api_base",
+                        message=prompt_msg,
+                        validate=lambda _, c: len(c) > 0,
+                    )
+                ]
                 answers = inquirer.prompt(questions)
                 api_base = answers.get("api_base")
                 questions = [
@@ -269,6 +264,7 @@ def main():
                 set_to_envs = answers["set_to_envs"]
                 api_key = ""
                 model = ""
+                api_version = ""
 
             else:
                 questions = [

@@ -42,7 +42,7 @@ class MessageBlock:
         if cursor:
             text += ' █'
         markdown = Markdown(text)
-        panel = Padding(Panel(markdown, box=MINIMAL, style="white on black"), (1, 0, 1, 0))
+        panel = Padding(Panel(markdown, box=MINIMAL, style="bright_white on gray7"), (1, 0, 1, 0))
         # panel.expand = True
         self.live.update(panel, refresh=True)
 
@@ -52,13 +52,10 @@ class ChatAgent:
     def __init__(self, llm) -> None:
         self.messages = []
         self.temperature = 0.1
-        self.local = False
-        self.debug_mode = False
         self.model = "" 
-        self.context_window = 2000 # For local models only
         self.max_tokens = 750 # For local models only
-        self.llm_instance = None
         self.llm = llm
+        self.ask_for_system_prompt = False
         self.system_message = ""
         self.consule = Console()
         month = datetime.datetime.now().strftime("%Y%m")
@@ -158,7 +155,10 @@ class ChatAgent:
         self.print_welcome()
 
     def chat(self):
-        self.set_system_prompt()
+        if self.ask_for_system_prompt:
+            self.set_system_prompt()
+        else:
+            self.print_welcome()
         while True:
             time.sleep(0.05)
             try:
@@ -198,26 +198,16 @@ class ChatAgent:
     
     def respond(self):
         attempts = 16
-        if not self.model.strip():
-            max_new_token = 1024 
-        else:
-            token_counts = self.llm.count_tokens([m["content"] for m in self.messages]  + [self.system_message])
-            if self.model.startswith('claude'):
-                max_new_token = 80000 - token_counts
-            elif self.model.startswith('gpt-4'):
-                max_new_token = 4096 - token_counts
-            elif self.model.startswith('gpt-3'):
-                max_new_token = 4000 - token_counts
         try:
             # print(self.system_message)
             # print(Markdown(json.dumps(self.messages, indent=2, ensure_ascii=False)))
             # print(self.tool._preprocess_claude_prompt(self.messages))
-            response = self.llm.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_tokens=max_new_token)
+            response = self.llm(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_tokens=self.max_tokens)
         except RateLimitError as e:
             print(Markdown(f"> We hit a rate limit. Cooling off for {attempts} seconds..."))
             time.sleep(attempts)
             try:
-                response = self.llm.chat(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_new_token=max_new_token)
+                response = self.llm(self.messages, system=self.system_message, stream=True, model=self.model, temperature=self.temperature, max_tokens=self.max_tokens)
             except Exception as e:
                 pass
         except Exception as e:

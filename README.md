@@ -48,7 +48,7 @@ Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatic
 
 ## Installation
 
-Requirements Python >=3.11
+Requirements Python >=3.9
 
 ```sh
 pip install -U one-api-tool
@@ -201,13 +201,10 @@ open-api --config_file CHANGE_TO_YOUR_CONFIG_PATH \
 
 1+1=?
 
--------------------- prompt end --------------------
-
 -------------------- gpt-3.5-turbo response ⭐️ --------------------
 
 2
 
--------------------- response end --------------------
 ```
 
 </details>

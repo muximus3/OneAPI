@@ -171,8 +171,8 @@ print(len(embeddings))
 # Count the number of tokens
 print(llm.count_tokens(["Hello AI!", "Hello world!"]))
 ```
-**Note: Currently, `get_embeddings` only support OpenAI or Microsoft Azure API.**
-### Batch request with asyncio, "python >= 3.11" required.
+**Note: Currently, the `get_embeddings` function only supports OpenAI, Microsoft Azure API, and locally deployed Inference Endpoint using [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference)(Which is really fast)**
+### Batch request with asyncio, `python >= 3.11` required.
 ```python
 from oneapi.one_api import batch_chat
 import asyncio

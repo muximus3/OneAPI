@@ -183,18 +183,10 @@ openai_config = "openapi_config.json"
 azure_config = "openapi_azure_config.json"
 # The coccurent number of requests would be 3, which is the same as the length of the configs list.
 configs = [anthropic_config, openai_config, azure_config]
-prompts = ["How\'s the weather today?", "How\'s the weather today?", "How\'s the weather today?"]
+prompts = ["How\'s the weather today?", "How\'s the weather today?", "How\'s the weather today?", [{"role": "user", "content": "Where is Mars?"}]]
 res = asyncio.run(batch_chat(configs, prompts, stream=False))
 print(res)
 ```
-<details open> <summary>Output detail</summary>
-
-```text
-
-On July 10th, 2022, the weather in New York is expected to be sunny. The temperature will be around 30 degrees Celsius (86 degrees Fahrenheit). The air quality is expected to be good.
-```
-
-</details>
 
 
 ### 2. Using command line

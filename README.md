@@ -2,7 +2,7 @@
 
 The LLM calling tool is designed for researchers to interact with the language model. It can be accessed through a user interface (UI), code, or command.
 
-Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatically save them in a **training-specific** data format.
+You can engage in multi-turn conversations with ChatGPT or other LLMs APIs and automatically save them in a **training-specific** data format.
 
 **Step 1: Installation (requires Python environment and python >= 3.11):** `pip install one-api-tool`
 
@@ -171,8 +171,9 @@ print(len(embeddings))
 # Count the number of tokens
 print(llm.count_tokens(["Hello AI!", "Hello world!"]))
 ```
-**Note: Currently, the `get_embeddings` function only supports OpenAI, Microsoft Azure API, and locally deployed Inference Endpoint using [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference)(Which is really fast)**
-### Batch request with asyncio, `python >= 3.11` required.
+**Note: Currently, the `get_embeddings` function only supports OpenAI, Microsoft Azure API, and locally deployed Inference Endpoint using [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference) (Which is really fast).**
+
+#### Batch request with asyncio, `python >= 3.11` required.
 ```python
 from oneapi.one_api import batch_chat
 import asyncio

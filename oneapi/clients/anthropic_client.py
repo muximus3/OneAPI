@@ -4,7 +4,7 @@ from oneapi.clients.abc_client import AbstractConfig, AbstractClient
 import anthropic
 import os
 import json
-
+from rich import print
 
 class AnthropicConfig(AbstractConfig):
     api_key: str
@@ -109,9 +109,9 @@ class AnthropicClient(AbstractClient):
         )
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
-                f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}"
+                f"reqeusts args = {json.dumps(args.model_dump(exclude_none=True), indent=4, ensure_ascii=False)}"
             )
-        resp = self.client.completions.create(**args.model_dump())
+        resp = self.client.completions.create(**args.model_dump(exclude_none=True))
         if args.stream:
             return self.chat_stream(resp)
         else:
@@ -136,9 +136,11 @@ class AnthropicClient(AbstractClient):
         )
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
-                f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}"
+                f"reqeusts args = {json.dumps(args.model_dump(exclude_none=True), indent=4, ensure_ascii=False)}"
             )
-        resp = await self.aclient.completions.create(**args.model_dump())
+        resp = await self.aclient.completions.create(
+            **args.model_dump(exclude_none=True)
+        )
         if args.stream:
             full_comp = ""
             async for data in resp:

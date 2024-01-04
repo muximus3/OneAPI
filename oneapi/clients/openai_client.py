@@ -7,6 +7,7 @@ from openai import OpenAI, AsyncOpenAI, AzureOpenAI, AsyncAzureOpenAI
 from oneapi.clients.abc_client import AbstractConfig, AbstractClient
 import numpy as np
 from tqdm import tqdm
+from rich import print
 
 
 class OpenAIConfig(AbstractConfig):
@@ -47,8 +48,11 @@ class AzureDecodingArguments(BaseModel):
     # The deployment name you chose when you deployed the ChatGPT or GPT-4 model
     model: str = "gpt-4"
     max_tokens: int = 2048
+    tools: Optional[list] = None
     temperature: float = 1
     seed: Optional[int] = None
+    tool_choice: Optional[Union[str, object]] = None
+    response_format: dict = None
     top_p: float = 1
     n: int = 1
     stream: bool = False
@@ -151,9 +155,9 @@ class OpenAIClient(AbstractClient):
             )
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
-                f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}"
+                f"reqeusts args = {json.dumps(args.model_dump(exclude_none=True), indent=4, ensure_ascii=False)}"
             )
-        data = args.model_dump()
+        data = args.model_dump(exclude_none=True)
         completion = self.client.chat.completions.create(**data)
         if data.get("stream", False):
             return self.chat_stream(completion)
@@ -182,9 +186,9 @@ class OpenAIClient(AbstractClient):
             )
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
-                f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}"
+                f"reqeusts args = {json.dumps(args.model_dump(exclude_none=True), indent=4, ensure_ascii=False)}"
             )
-        data = args.model_dump()
+        data = args.model_dump(exclude_none=True)
         completion = await self.aclient.chat.completions.create(**data)
         if data.get("stream", False):
             response_message = ""
@@ -205,7 +209,7 @@ class OpenAIClient(AbstractClient):
             return response_message.content
 
     def get_embeddings(
-        self, texts: List[str], model="text-embedding-ada-002", max_batch_size=2048
+        self, texts: List[str], model="text-embedding-ada-002", max_batch_size=512, **kwargs
     ) -> List[List[float]]:
         def get_batch_embeddings(batch_texts):
             assert (
@@ -228,7 +232,7 @@ class OpenAIClient(AbstractClient):
         embeddings = np.concatenate(embeddings, axis=0).astype(np.float32)
         return embeddings
 
-    def get_embedding(self, text: str, model="text-embedding-ada-002") -> List[float]:
+    def get_embedding(self, text: str, model="text-embedding-ada-002", **kwargs) -> List[float]:
         # replace newlines, which can negatively affect performance.
         text = text.replace("\n", " ")
         return (

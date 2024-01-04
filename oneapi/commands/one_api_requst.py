@@ -124,9 +124,9 @@ def main():
     )
     args = parser.parse_args()
     if args.version:
-        print("One API", pkg_resources.get_distribution("open-interpreter").version)
+        rprint("One API", pkg_resources.get_distribution("open-interpreter").version)
         if check_for_update():
-            print(
+            rprint(
                 "A new version is available. Please run 'pip install --upgrade one-api-tool'."
             )
         return
@@ -142,8 +142,8 @@ def main():
             max_tokens=args.max_tokens,
         )
         prompt = f"{args.system}\n\n{args.prompt}" if args.system else args.prompt
-        print(f"\n{'-'*20} prompt detail 🚀  {'-'*20}\n\n{prompt}\n")
-        print(f"{'-'*20} {args.model} response ⭐️ {'-'*20}")
+        rprint(f"\n{'-'*20} prompt detail 🚀  {'-'*20}\n\n{prompt}\n")
+        rprint(f"{'-'*20} {args.model} response ⭐️ {'-'*20}")
         full_response_text = ""
         with MessageBlock(consule=Console()) as block:
             for text in response:
@@ -177,7 +177,7 @@ def main():
                     ],
                 }
                 f.write(json.dumps(format_data, ensure_ascii=False) + "\n")
-            print(f"Save model response to file success! DIR: {cace_file_dir}")
+            rprint(f"Save model response to file success! DIR: {cace_file_dir}")
     else:
         rprint(Markdown(f"\nWelcome to **One API**.\n"))
         questions = [

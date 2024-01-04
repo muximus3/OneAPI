@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 import fnmatch
 import json
+import logging
 try:
     from jinja2.exceptions import TemplateError
     from jinja2.sandbox import ImmutableSandboxedEnvironment
@@ -15,7 +16,7 @@ except ImportError:
     raise ImportError("comile requires jinja2 to be installed.")
 
 sys.path.append(os.path.normpath(f'{os.path.dirname(os.path.abspath(__file__))}/..'))
-
+logger = logging.getLogger(__name__)
 
 def compile_jinja_template(chat_template):
     def raise_exception(message):
@@ -67,7 +68,7 @@ def load_jsonl(data_path: str, obj_item: bool=True):
             try:
                 data.append(json.loads(l)) 
             except json.decoder.JSONDecodeError as e:
-                print(f'load file:{data_path}, line {i} error: {l}')
+                logger.error(f'load file:{data_path}, line {i} error: {l}')
                 continue
         return data
     return [l for l in open(data_path, "r")] 

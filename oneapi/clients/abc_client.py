@@ -58,7 +58,7 @@ class AbstractClient(ABC):
     ) -> List[List[float]]:
         def get_batch_embeddings(batch_texts):
             if max_sequence_length > 0:
-                batch_texts = [s[:max_sequence_length] for s in batch_texts]
+                batch_texts = [s[:max_sequence_length].replace("\n", " ") for s in batch_texts]
             res = requests.post(
                 self.config.api_base,
                 json={"inputs": batch_texts},

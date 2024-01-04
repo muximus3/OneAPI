@@ -9,6 +9,7 @@ from typing import Optional, List, Union, Dict
 from urllib.parse import urljoin
 import os
 import sys
+from rich import print
 
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/../.."))
 
@@ -21,6 +22,7 @@ class VLLMConfig(AbstractConfig):
 
 
 class VLLMDecodingArguments(BaseModel):
+    """https://github.com/vllm-project/vllm/blob/main/vllm/sampling_params.py""" 
     prompt: str
     stream: bool = False
     n: int = 1
@@ -121,10 +123,12 @@ class VLLMClient(AbstractClient):
         )
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
-                f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}"
+                f"reqeusts args = {json.dumps(args.model_dump(exclude_none=True), indent=4, ensure_ascii=False)}"
             )
         response = requests.post(
-            self.config.api_base, json=args.model_dump(), stream=args.stream
+            self.config.api_base,
+            json=args.model_dump(exclude_none=True),
+            stream=args.stream,
         )
         if args.stream:
             return self.chat_stream(response)
@@ -146,7 +150,7 @@ class VLLMClient(AbstractClient):
         )
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
-                f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}"
+                f"reqeusts args = {json.dumps(args.model_dump(exclude_none=True), indent=4, ensure_ascii=False)}"
             )
         async with aiohttp.ClientSession(
             headers=self.headers,
@@ -154,7 +158,7 @@ class VLLMClient(AbstractClient):
             timeout=aiohttp.ClientTimeout(self.timeout),
         ) as session:
             async with session.post(
-                self.config.api_base, json=args.model_dump()
+                self.config.api_base, json=args.model_dump(exclude_none=True)
             ) as response:
                 if args.stream:
                     texts = ""

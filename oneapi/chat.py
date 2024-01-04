@@ -13,6 +13,7 @@ import datetime
 import json
 from openai import RateLimitError
 from pathlib import Path
+import traceback
 import sys 
 import os
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
@@ -53,7 +54,7 @@ class ChatAgent:
         self.messages = []
         self.temperature = 0.1
         self.model = "" 
-        self.max_tokens = 750 # For local models only
+        self.max_tokens = 2048 # For local models only
         self.llm = llm
         self.ask_for_system_prompt = False
         self.system_message = ""
@@ -211,6 +212,7 @@ class ChatAgent:
             except Exception as e:
                 pass
         except Exception as e:
+            traceback.print_exc()
             print(Markdown(f"> {e}"))
             return
         plain_response = ""

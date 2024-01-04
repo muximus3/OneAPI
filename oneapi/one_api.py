@@ -53,7 +53,10 @@ class OneAPITool:
                 chat_template=chat_template,
             )
             config = {k: v for k, v in config.items() if v}
-        client = client_cls.from_config(config | kwargs)
+        if kwargs:
+            client = client_cls.from_config(config | kwargs)
+        else:
+            client = client_cls.from_config(config)
         return cls(client)
 
     def format_prompt(
@@ -69,26 +72,30 @@ class OneAPITool:
         stop: List[str] = None,
         **kwargs,
     ):
-        # dont use empty value to overwrite default values
-        # kwargs = {k: v for k, v in kwargs.items() if v}
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
         if stop:
             kwargs["stop"] = stop
         response = self.client.chat(prompt, system, max_tokens=max_tokens, **kwargs)
         return response
 
     async def achat(
-        self, prompt: Union[str, list[str], list[dict]], system: str = "", **kwargs
+        self,
+        prompt: Union[str, list[str], list[dict]],
+        system: str = "",
+        max_tokens: int = 512,
+        **kwargs,
     ):
-        # dont overwrite default values
-        # kwargs = {k: v for k, v in kwargs.items() if v}
-        response = await self.client.achat(prompt, system, **kwargs)
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        response = await self.client.achat(
+            prompt, system, max_tokens=max_tokens, **kwargs
+        )
         return response
 
-    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
-        return self.client.get_embeddings(texts)
+    def get_embeddings(self, texts: List[str], **kwargs) -> List[List[float]]:
+        return self.client.get_embeddings(texts, **kwargs)
 
-    def get_embedding(self, text: str) -> List[float]:
-        return self.client.get_embedding(text)
+    def get_embedding(self, text: str, **kwargs) -> List[float]:
+        return self.client.get_embedding(text, **kwargs)
 
     def count_tokens(self, texts: List[str], model: str = "gpt-4") -> int:
         assert isinstance(
@@ -103,48 +110,66 @@ async def bound_fetch(sem, pbar, tool: OneAPITool, prompt: str, model: str, **kw
             res = await tool.achat(prompt=prompt, model=model, **kwargs)
             pbar.update(1)
             return res
-        except Exception as e:
+        except (Exception, asyncio.CancelledError) as e:
             logger.error(f"Error when calling {model} api: {e}")
             return None
 
 
 async def batch_chat(
-    api_configs, texts, engines=None, request_interval=0.1, max_process_num=1, **kwargs
+    api_configs,
+    prompts,
+    models=None,
+    request_interval=0.1,
+    min_process_num=1,
+    max_process_num=10,
+    **kwargs,
 ):
     if isinstance(api_configs[0], str):
         tools = [OneAPITool.from_config(config_file) for config_file in api_configs]
     else:
         tools = [OneAPITool.from_config(**config) for config in api_configs]
-    max_process_num = max(len(api_configs), max_process_num)
-    engines = engines if engines is not None else [""] * max_process_num
-    if engines is not None and len(engines) == 1:
-        engines = engines * max_process_num
-    if engines is not None and len(engines) > 1:
-        assert (
-            len(engines) == max_process_num
-        ), f"Number of engines must be equal to number of api config files when specific multiple engines, but got {len(engines)} engines and {max_process_num} api config files."
+    min_process_num = max(len(api_configs), min_process_num)
+    if len(tools) < min_process_num:
+        tools = tools * min_process_num
+    specific_model = kwargs.pop("model", None)
+    if models is None:
+        models = [specific_model] * min_process_num 
+    else:
+        if "model" in kwargs:
+            logger.warning(
+                f"Both models and model are specified, model will be ignored."
+            )
+        if len(models) == 1:
+            models = models * min_process_num
+        else:
+            assert (
+                len(models) == min_process_num
+            ), f"Number of models must be equal to number of api config files when specific multiple models, but got {len(models)} models and {min_process_num} api config files."
 
     sem = asyncio.Semaphore(max_process_num)
-    pbar = tqdm(total=len(texts), desc=f"Batch requests")
-    tasks = [
-        asyncio.ensure_future(
-            bound_fetch(
-                sem,
-                pbar,
-                tools[i % max_process_num],
-                prompt=prompt,
-                model=engines[i % max_process_num],
-                **kwargs,
+    pbar = tqdm(total=len(prompts), desc=f"Batch requests")
+    async with asyncio.TaskGroup() as g:
+        tasks = [
+            g.create_task(
+                bound_fetch(
+                    sem,
+                    pbar,
+                    tools[i % min_process_num],
+                    prompt=prompt,
+                    model=models[i % min_process_num],
+                    **kwargs,
+                )
             )
-        )
-        for i, prompt in enumerate(texts)
-    ]
-    task_batches = [
-        tasks[i : i + max_process_num] for i in range(0, len(tasks), max_process_num)
-    ]
-    results = []
-    for batch in task_batches:
-        batch_result = await asyncio.gather(*batch)
-        results.extend(batch_result)
-        time.sleep(request_interval)
+            for i, prompt in enumerate(prompts)
+        ]
+        task_batches = [
+            tasks[i : i + min_process_num]
+            for i in range(0, len(tasks), min_process_num)
+        ]
+        results = []
+        for batch in task_batches:
+            batch_result = await asyncio.gather(*batch)
+            results.extend(batch_result)
+            await asyncio.sleep(request_interval)
+    pbar.close()
     return results

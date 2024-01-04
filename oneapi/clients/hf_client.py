@@ -5,6 +5,7 @@ import os
 import json
 import sys
 from urllib.parse import urlparse
+from rich import print
 
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/../.."))
 from oneapi.utils import compile_jinja_template
@@ -108,12 +109,12 @@ class HuggingfaceClient(AbstractClient):
         )
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
-                f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}"
+                f"reqeusts args = {json.dumps(args.model_dump(exclude_none=True), indent=4, ensure_ascii=False)}"
             )
         if self.huggingface_client is None:
             self.huggingface_client = InferenceClient(self.config.api_base)
         resp = self.huggingface_client.text_generation(
-            **args.model_dump(), details=True
+            **args.model_dump(exclude_none=True), details=True
         )
         if args.stream:
             return self.chat_stream(resp)
@@ -137,12 +138,12 @@ class HuggingfaceClient(AbstractClient):
         )
         if "verbose" in kwargs and kwargs["verbose"]:
             print(
-                f"reqeusts args = {json.dumps(args.model_dump(), indent=4, ensure_ascii=False)}"
+                f"reqeusts args = {json.dumps(args.model_dump(exclude_none=True), indent=4, ensure_ascii=False)}"
             )
         if self.async_huggingface_client is None:
             self.async_huggingface_client = AsyncInferenceClient(self.config.api_base)
         resp = await self.async_huggingface_client.text_generation(
-            **args.model_dump(), details=True
+            **args.model_dump(exclude_none=True), details=True
         )
         if args.stream:
             full_comp = ""

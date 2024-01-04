@@ -13,9 +13,11 @@ import asyncio
 import transformers
 import logging
 from typing import Self
+from rich import print
 
 sys.path.append(os.path.normpath(f"{os.path.dirname(os.path.abspath(__file__))}/.."))
 from oneapi import OneAPITool, register_client, AbstractClient, AbstractConfig
+from one_api import batch_chat
 
 
 class MockClient(AbstractClient):
@@ -56,9 +58,17 @@ register_client("mock", MockClient)
 
 tool = OneAPITool.from_config("../ant/config/openapi_azure_config_xiaoduo_dev5.json")
 
-str_msg = "太平洋有多大"
-list_msg = ["太平洋有多大", "太平洋有多大"]
-list_msg_dict = [{"role": "user", "content": "太平洋有多大"}]
-system_msg = "太平洋有多大"
+str_msg = "Where is Mars?"
+list_msg = ["Where is Mars?", "Where is Mars?"]
+list_msg_dict = [{"role": "user", "content": "Where is Mars?"}]
+system_msg = "Where is Mars?"
 for msg in [str_msg, list_msg, list_msg_dict]:
-    print(tool.chat(msg, system=system_msg, verbose=True))
+    print(tool.chat(msg, system=system_msg, verbose=True, model="gpt-35-turbo"))
+
+
+list_msg = [list_msg_dict] * 5 + list_msg
+configs = [
+    "../ant/config/openapi_azure_config_xiaoduo_dev5.json",
+]
+res = asyncio.run(batch_chat(configs, list_msg, models=["gpt-35-turbo"], system=system_msg, verbose=True))
+print(res)

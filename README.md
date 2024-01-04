@@ -1,8 +1,8 @@
 # OneAPI
 
-LLM calling tool for researchers, which can interact with the language model based on UI or code.
+The LLM calling tool is designed for researchers to interact with the language model. It can be accessed through a user interface (UI), code, or command.
 
-Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatically save them in a training-specific data format.
+Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatically save them in a **training-specific** data format.
 
 **Step 1: Installation (requires Python environment and python >= 3.11):** `pip install one-api-tool`
 
@@ -42,10 +42,19 @@ Engage in multi-turn conversations with ChatGPT or Other LLMs APIs and automatic
     - [x] Token number counting.
 - [x] Huggingface LLMs.
     - [x] Huggingface_hub
-    - [x] Local deployed Inference Endpoint.
+    - [x] Local deployed Inference Endpoint, e.g., [Text Generation Inference](https://github.com/huggingface/text-generation-inference).
 
-- [x] VLLM deployed Inference Endpoint
+- [x] [vLLM](https://github.com/vllm-project/vllm) deployed Inference Endpoint.
 
+    Note: If you deploy vLLM with OpenAI-Compatible API as follows, you should set your api config as `api_type="openai"` and `api_base="http://ip:port/v1"` and `api_key="EMPTY`.
+    
+    Deploy vLLM with OpenAI-Compatible API:
+    ```python 
+    python -m vllm.entrypoints.openai.api_server \
+    --model /path_to_the_model/facebook/opt-125m \
+    --chat-template ./examples/template_chatml.jinja
+    ```
+    
 ## Installation
 
 Requirements Python >=3.9
@@ -113,7 +122,14 @@ If you are using Azure APIs, you can find relevant information on the Azure reso
 
 `api_version`: This field is optional. Azure provides several versions of APIs, such as "2023-03-15-preview". However, the OpenAI SDK always has a default value set for this field. Therefore, you should only specify a specific value if you want to use that particular version of APIs.
 
-`chat_template`: This field is optional. When using local endpoint server, pass a JinJa2 template designed specifically for that model. The template render function would takes `prompt` and `system` as parameters `template.render(prompt=prompt, system=system)`. The default template is `{{system + prompt}}`.
+`chat_template`: This field is optional. When using a local endpoint server, you can pass a Jinja2 template specifically designed for that model, **mathing the template during training**. The template render function takes `prompt` and `system` as parameters: `template.render(prompt=prompt, system=system)`. The default template differs based on the type of prompt. For string input, it is as follows:
+ ```python
+ DEFAULT_STR_TEMP_SYSTEM_USER_ASSISTANT = """{% if system != '' %}{{'<s>System:\n'+system+'\n\nHuman\n'+prompt+'\n\nAssistant:\n'}}{% else %}{{'<s>Human:\n'+prompt+'\n\nAssistant:\n'}}{% endif %}"""
+ ```
+For a list of dictionary messages in OpenAI format, the default template is:
+ ```python  
+ DEFAULT_LIST_MSG_TEMP_SYSTEM_USER_ASSISTANT = """{% for message in prompt %}{% if loop.first %}{% if message['role'] == 'user' %}{% if loop.length != 1 %}{{ '<s>Human:\n' + message['content'] }}{% else %}{{ '<s>Human:\n' + message['content'] + '\n\nAssistant:\n' }}{% endif %}{% elif message['role'] == 'system' %}{{ '<s>System:\n' + message['content'] }}{% endif %}{% elif message['role'] == 'user' %}{% if loop.last %}{{ '\n\nHuman:\n' + message['content'] + '\n\nAssistant:\n'}}{% else %}{{ '\n\nHuman:\n' + message['content']}}{% endif %}{% elif message['role'] == 'assistant' %}{{ '\n\nAssistant:\n' + message['content'] }}{% endif %}{% endfor %}"""
+ ```
 
 #### Chat example:
 #### There are three acceptable types of inputs for function `chat()`: 
@@ -156,7 +172,7 @@ print(len(embeddings))
 print(llm.count_tokens(["Hello AI!", "Hello world!"]))
 ```
 **Note: Currently, `get_embeddings` only support OpenAI or Microsoft Azure API.**
-### Batch request with asyncio
+### Batch request with asyncio, "python >= 3.11" required.
 ```python
 from oneapi.one_api import batch_chat
 import asyncio

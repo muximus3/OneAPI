@@ -175,7 +175,7 @@ print(llm.count_tokens(["Hello AI!", "Hello world!"]))
 
 #### Batch request with asyncio, `python >= 3.11` required.
 ```python
-from oneapi.one_api import batch_chat
+from oneapi import batch_chat
 import asyncio
 
 anthropic_config = "anthropic_config.json"

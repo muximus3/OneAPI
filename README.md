@@ -179,9 +179,6 @@ from oneapi import batch_chat
 import asyncio
 import time
 
-anthropic_config = "anthropic_config.json"
-openai_config = "openapi_config.json"
-azure_config = "openapi_azure_config.json"
 configs = [
     {"api_key": "EMPTY", "api_base": "http://0.0.0.0:8000/v1", "api_type": "openai"},
     {"api_key": "EMPTY", "api_base": "http://0.0.0.0:8000", "api_type": "vllm"},

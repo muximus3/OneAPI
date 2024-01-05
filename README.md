@@ -177,15 +177,50 @@ print(llm.count_tokens(["Hello AI!", "Hello world!"]))
 ```python
 from oneapi import batch_chat
 import asyncio
+import time
 
 anthropic_config = "anthropic_config.json"
 openai_config = "openapi_config.json"
 azure_config = "openapi_azure_config.json"
-# The coccurent number of requests would be 3, which is the same as the length of the configs list.
-configs = [anthropic_config, openai_config, azure_config]
-prompts = ["How\'s the weather today?", "How\'s the weather today?", "How\'s the weather today?", [{"role": "user", "content": "Where is Mars?"}]]
-res = asyncio.run(batch_chat(configs, prompts, stream=False))
-print(res)
+configs = [
+    {"api_key": "EMPTY", "api_base": "http://0.0.0.0:8000/v1", "api_type": "openai"},
+    {"api_key": "EMPTY", "api_base": "http://0.0.0.0:8000", "api_type": "vllm"},
+    {"api_key": "", "api_base": "http://0.0.0.0:8999", "api_type": "huggingface"},
+    {"api_key": "", "api_base": "http://0.0.0.0:8998", "api_type": "huggingface"},
+    "azure_openai_config.json",
+    "anthropic_config.json",
+    "openapi_config.json",
+]
+prompts = [
+    "What is the capital of France?",
+    "What is the capital of Germany?",
+    "What is the capital of Italy?",
+    "What is the capital of Spain?",
+    "What is the capital of Portugal?",
+    "What is the capital of Belgium?",
+    "What is the capital of Netherlands?",
+    "What is the capital of Luxembourg?",
+    "What is the capital of Denmark?",
+    "What is the capital of Sweden?",
+    "What is the capital of Norway?",
+    "What is the capital of Finland?",
+    "Tell me a joke about Trump.",
+    "Tell me a joke about Biden.",
+    "Tell me a joke about Obama.",
+    "Tell me a joke about Bush.",
+    "Tell me a joke about Clinton.",
+    "Tell me a joke about Reagan.",
+    "Tell me a joke about Carter.",
+    "Tell me a joke about Soviet Union.",
+    [{"role": "user", "content": "Where is Mars?"}]
+]
+tic = time.time()
+models = ["path_to_vllm_deployed_model", "path_to_vllm_deployed_model", "", "", "gpt-4", "claude-v2.1", "gpt-3.5-turbo"]
+res = asyncio.run(
+    batch_chat(configs, prompts, models, request_interval=0.01, min_process_num=200)
+)
+print(len(res))
+print("Time: ", time.time() - tic)
 ```
 
 

@@ -124,16 +124,18 @@ async def batch_chat(
     max_process_num=10,
     **kwargs,
 ):
-    if isinstance(api_configs[0], str):
-        tools = [OneAPITool.from_config(config_file) for config_file in api_configs]
-    else:
-        tools = [OneAPITool.from_config(**config) for config in api_configs]
+    tools = [
+        OneAPITool.from_config(config_file)
+        if isinstance(config_file, str)
+        else OneAPITool.from_config(**config_file)
+        for config_file in api_configs
+    ]
     min_process_num = max(len(api_configs), min_process_num)
     if len(tools) < min_process_num:
         tools = tools * min_process_num
     specific_model = kwargs.pop("model", None)
     if models is None:
-        models = [specific_model] * min_process_num 
+        models = [specific_model] * min_process_num
     else:
         if "model" in kwargs:
             logger.warning(

@@ -7,6 +7,7 @@ from tqdm import tqdm
 from oneapi.utils import load_json
 from oneapi import clients
 import os
+import traceback
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -104,15 +105,20 @@ class OneAPITool:
         return self.client.count_tokens(texts, model)
 
 
-async def bound_fetch(sem, pbar, tool: OneAPITool, prompt: str, model: str, **kwargs):
+async def bound_fetch(sem, pbar, tool: OneAPITool, prompt: str, model: str, max_retries=2, **kwargs):
     async with sem:
-        try:
-            res = await tool.achat(prompt=prompt, model=model, **kwargs)
-            pbar.update(1)
-            return res
-        except (Exception, asyncio.CancelledError) as e:
-            logger.error(f"Error when calling {model} api: {e}")
-            return None
+        while max_retries > 0:
+            max_retries -= 1
+            try:
+                res = await tool.achat(prompt=prompt, model=model, **kwargs)
+                pbar.update(1)
+                return res
+            except (Exception, asyncio.CancelledError) as e:
+                traceback.print_stack()
+                logger.error(f"Error when calling {model} api: {e}")
+                logger.info(f"Retrying {model} api...")
+                continue
+        return None
 
 
 async def batch_chat(
@@ -124,6 +130,8 @@ async def batch_chat(
     max_process_num=10,
     **kwargs,
 ):
+    if not isinstance(api_configs, list):
+        api_configs = [api_configs]
     tools = [
         OneAPITool.from_config(config_file)
         if isinstance(config_file, str)

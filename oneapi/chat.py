@@ -54,7 +54,7 @@ class ChatAgent:
         self.messages = []
         self.temperature = 0.1
         self.model = "" 
-        self.max_tokens = 2048 # For local models only
+        self.max_tokens = 1024 # For local models only
         self.llm = llm
         self.ask_for_system_prompt = False
         self.system_message = ""
@@ -99,7 +99,8 @@ class ChatAgent:
     
 
 
-    def handle_load_history(self):
+    def handle_load_history(self, idx: int=-1):
+        idx = int(idx)
         if not self.cace_file_dir.is_file():
             files = find_files_unrecu(self.cace_dir, 'history_cache_*.jsonl')
             if len(files) == 0:
@@ -111,8 +112,10 @@ class ChatAgent:
         else:
             latest_file = self.cace_file_dir
         sessions = load_jsonl(latest_file)
-        self.system_message = sessions[-1]['system_prompt']
-        self.messages = map_conversations_format(sessions[-1]['conversations'])
+        if idx > len(sessions) - 1:
+            idx = -1
+        self.system_message = sessions[idx]['system_prompt']
+        self.messages = map_conversations_format(sessions[idx]['conversations'])
         self.replay_messages() 
 
         
@@ -126,10 +129,15 @@ class ChatAgent:
             "load": self.handle_load_history,
             "system": self.set_system_prompt,
         }
-        command = user_input[1:].strip()
+        input_info = user_input[1:].strip().split()
+        command = input_info[0]
+        addtion_info = input_info[1] if len(input_info) > 1 else None
         action = actions.get(command, None)
         if action:
-            action()
+            if addtion_info:
+                action(addtion_info)
+            else:
+                action()
         else:
             print(Markdown(f"**Unknown command:** `{command}`"))
 

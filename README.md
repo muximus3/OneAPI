@@ -21,7 +21,7 @@ You can engage in multi-turn conversations with ChatGPT or other LLMs APIs and a
 - `: + d_clear` to clear the conversation history and system prompt
 - `: + undo` to remove the latest message
 - `: + save` to save the current session history (the program also saves automatically upon exit)
-- `: + load` to load the last conversation from cache file
+- `: + load` to load the last conversation from cache file. Specify a numerical index to load a specific conversation, e.g., `:load -2`.
 - `: + system` to set the system prompt
 
 ![Alt text](/assets/save.png)
